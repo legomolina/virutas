@@ -1,0 +1,66 @@
+section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+hgroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+h2 {
+  font: var(--text-heading);
+}
+
+p {
+  font: var(--text-caption);
+  color: var(--ink-muted);
+}
+
+fieldset {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: var(--space-4);
+  align-items: start;
+
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-inline-size: 0;
+  margin: 0;
+  padding-block: var(--space-4) var(--space-6);
+  padding-inline: var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+
+  background-color: var(--surface-raised);
+}
+
+legend {
+  margin-inline-start: calc(-1 * var(--space-2));
+  padding-inline: var(--space-2);
+  font: var(--text-title);
+}
+
+wt-text-field {
+  max-inline-size: none;
+}
+
+/* Lines the Remove button up with the inputs, below their labels (both set in --text-label). */
+fieldset button {
+  margin-block-start: calc(1lh + var(--space-2));
+}
+
+@media (width <= 600px) {
+  fieldset {
+    grid-template-columns: minmax(0, 1fr);
+    padding-inline: var(--space-4);
+  }
+
+  fieldset button {
+    justify-self: start;
+    margin-block-start: 0;
+  }
+}

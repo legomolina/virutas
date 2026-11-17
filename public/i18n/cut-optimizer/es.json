@@ -9,5 +9,20 @@
       "unreadable": "No es una longitud. Prueba con 3 mm, 1/8\" o 2 1/2\".",
       "negative": "Una longitud no puede ser negativa."
     }
+  },
+  "stock": {
+    "title": "Material",
+    "description": "Las longitudes de las que puedes cortar. Por ejemplo 2400, 94 1/2\" o 2400 mm; sin unidad, los números usan tu sistema de medida preferido.",
+    "entry": "Material {{ n }}",
+    "length": { "label": "Longitud" },
+    "quantity": { "label": "Cantidad", "hint": "Vacía: tanto material como haga falta." },
+    "add": "Añadir material",
+    "remove": "Quitar",
+    "removeLabel": "Quitar material {{ n }}"
+  },
+  "errors": {
+    "lengthUnreadable": "No se puede leer esa longitud. Prueba con algo como 2400, 94 1/2\" o 2400 mm.",
+    "lengthNotPositive": "Una longitud debe ser mayor que cero.",
+    "quantityNotPositiveInteger": "La cantidad debe ser un número entero mayor que cero, o quedar vacía para usar tanto material como haga falta."
   }
 }
