@@ -295,9 +295,7 @@ function cost(candidate: Candidate, settings: JobSettings): number[] {
 }
 
 /** Compares costs position by position, a missing Offcut counting as 0. Negative when `a` is better. */
-function compare(a: Candidate, b: Candidate, settings: JobSettings): number {
-  const costA = cost(a, settings);
-  const costB = cost(b, settings);
+function compare(costA: readonly number[], costB: readonly number[]): number {
   for (let position = 0; position < Math.max(costA.length, costB.length); position++) {
     const difference = (costA[position] ?? 0) - (costB[position] ?? 0);
     if (Math.abs(difference) > EPSILON_MILLIMETRES) {
@@ -320,19 +318,31 @@ function move(bins: readonly Bin[], part: Part, to: number): Bin[] {
 }
 
 /**
- * Repeatedly moves single Parts to another Stock while that gives a better Cutting Plan by
- * `compare`, until no move does.
+ * Repeatedly moves single Parts to another Stock while that lowers the `cost` of the Cutting Plan,
+ * until no move does.
  */
 function improve(start: Candidate, entries: readonly Entry[], settings: JobSettings): Candidate {
   let best = start;
+  let bestCost = cost(best, settings);
+  const longestUsable = Math.max(...entries.map((entry) => entry.usableMillimetres));
   let improved = true;
   while (improved) {
     improved = false;
     for (const part of best.bins.flat()) {
       for (let to = 0; to <= best.bins.length; to++) {
+        // Only saves time: a Part that fits no Stock with the Parts already there is never a move.
+        const crowded = [...(best.bins.at(to) ?? []), part];
+        if (!holds(longestUsable, needed(crowded, settings.kerfMillimetres))) {
+          continue;
+        }
         const candidate = assignStock(move(best.bins, part, to), entries, settings.kerfMillimetres);
-        if (candidate !== undefined && compare(candidate, best, settings) < 0) {
+        if (candidate === undefined) {
+          continue;
+        }
+        const candidateCost = cost(candidate, settings);
+        if (compare(candidateCost, bestCost) < 0) {
           best = candidate;
+          bestCost = candidateCost;
           improved = true;
         }
       }
