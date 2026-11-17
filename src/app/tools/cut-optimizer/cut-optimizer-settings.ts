@@ -1,6 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { provideTranslocoScope, TranslocoPipe } from '@jsverse/transloco';
 import { cutOptimizerDefaults } from '../../core/settings/cut-optimizer-defaults.calc';
+import type { CutOptimizerSetting } from '../../core/settings/settings-store';
 import { SettingsStore } from '../../core/settings/settings-store';
 import { LengthSettingField } from './components/length-setting-field/length-setting-field';
 
@@ -22,7 +23,7 @@ export class CutOptimizerSettings {
   protected readonly fallback = computed(() => cutOptimizerDefaults(this.settings.unitSystem()));
 
   /** The value the user set, or `undefined` while the default applies. */
-  protected userValue(setting: 'kerf' | 'trim' | 'minimumOffcutLength'): number | undefined {
+  protected userValue(setting: CutOptimizerSetting): number | undefined {
     if (!this.settings.cutOptimizerSetByUser()[setting]) {
       return undefined;
     }

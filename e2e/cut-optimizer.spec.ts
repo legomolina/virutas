@@ -67,7 +67,7 @@ test.describe('the settings', () => {
     await page.getByRole('radio', { name: 'Metric' }).check();
 
     await expect(section.getByLabel('Kerf')).toHaveAccessibleDescription(/3 mm/);
-    await expect(section.getByLabel('Minimum Offcut length')).toHaveAccessibleDescription(/300 mm/);
+    await expect(section.getByLabel('Minimum Offcut Length')).toHaveAccessibleDescription(/300 mm/);
   });
 
   test('show a message on a field with a value that is not a length', async ({ page }) => {

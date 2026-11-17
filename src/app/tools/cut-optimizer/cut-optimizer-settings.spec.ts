@@ -75,7 +75,7 @@ describe('CutOptimizerSettings', () => {
     expect([...root(fixture).querySelectorAll('label')].map((l) => l.textContent.trim())).toEqual([
       'Kerf',
       'Trim',
-      'Minimum Offcut length',
+      'Minimum Offcut Length',
     ]);
   });
 
@@ -85,7 +85,7 @@ describe('CutOptimizerSettings', () => {
   ] as const)('tells the %s defaults on the fields', async (unitSystem, defaults) => {
     const { fixture } = await render(unitSystem);
 
-    const labels = ['Kerf', 'Trim', 'Minimum Offcut length'];
+    const labels = ['Kerf', 'Trim', 'Minimum Offcut Length'];
     labels.forEach((label, index) => {
       expect(describedBy(fixture, field(fixture, label))).toContain(defaults[index]);
     });
@@ -97,7 +97,7 @@ describe('CutOptimizerSettings', () => {
 
     await type(fixture, field(fixture, 'Kerf'), '2.5');
     await type(fixture, field(fixture, 'Trim'), '1 cm');
-    await type(fixture, field(fixture, 'Minimum Offcut length'), '2"');
+    await type(fixture, field(fixture, 'Minimum Offcut Length'), '2"');
 
     expect(store.cutOptimizerDefaults()).toEqual({
       kerfMillimetres: 2.5,
@@ -179,13 +179,37 @@ describe('CutOptimizerSettings', () => {
 
   it('shows a value the user set in the new Unit System when it changes', async () => {
     const { fixture, store } = await render('metric');
-    await type(fixture, field(fixture, 'Minimum Offcut length'), '254');
+    await type(fixture, field(fixture, 'Minimum Offcut Length'), '254');
 
     store.setUnitSystem('imperial');
     await fixture.whenStable();
 
-    expect(field(fixture, 'Minimum Offcut length').value).toBe('10"');
+    expect(field(fixture, 'Minimum Offcut Length').value).toBe('10"');
     expect(describedBy(fixture, field(fixture, 'Kerf'))).toContain('1/8"');
+  });
+
+  it('shows a value that has to be rounded in the new Unit System without the approximate mark, so it still reads', async () => {
+    const { fixture, store } = await render('metric');
+    await type(fixture, field(fixture, 'Kerf'), '2.5');
+
+    store.setUnitSystem('imperial');
+    await fixture.whenStable();
+
+    expect(field(fixture, 'Kerf').value).toBe('1/8"');
+    expect(messages(fixture)).toEqual([]);
+  });
+
+  it('accepts zero for the Trim and the minimum Offcut length', async () => {
+    const { fixture, store } = await render('metric');
+
+    await type(fixture, field(fixture, 'Trim'), '0');
+    await type(fixture, field(fixture, 'Minimum Offcut Length'), '0');
+
+    expect(store.cutOptimizerDefaults()).toMatchObject({
+      trimMillimetres: 0,
+      minimumOffcutLengthMillimetres: 0,
+    });
+    expect(store.cutOptimizerSetByUser()).toMatchObject({ trim: true, minimumOffcutLength: true });
   });
 
   it('is translated to Spanish', async () => {
