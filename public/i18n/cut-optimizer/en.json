@@ -1,1 +1,28 @@
-{ "intro": "Plan how to cut your Parts out of your Stock with the least Waste." }
+{
+  "intro": "Plan how to cut your Parts out of your Stock with the least Waste.",
+  "settings": {
+    "kerf": "Kerf",
+    "trim": "Trim",
+    "minimumOffcutLength": "Minimum Offcut Length",
+    "defaultHint": "Leave empty to use the default, {{ value }}.",
+    "error": {
+      "unreadable": "That isn't a length. Try 3 mm, 1/8\" or 2 1/2\".",
+      "negative": "A length cannot be negative."
+    }
+  },
+  "stock": {
+    "title": "Stock",
+    "description": "The lengths you can cut from. For example 2400, 94 1/2\" or 2400 mm; without a unit, numbers use your preferred Unit System.",
+    "entry": "Stock {{ n }}",
+    "length": { "label": "Length" },
+    "quantity": { "label": "Quantity", "hint": "Empty means as many as needed." },
+    "add": "Add Stock",
+    "remove": "Remove",
+    "removeLabel": "Remove Stock {{ n }}"
+  },
+  "errors": {
+    "lengthUnreadable": "That length can't be read. Try something like 2400, 94 1/2\" or 2400 mm.",
+    "lengthNotPositive": "A length must be greater than zero.",
+    "quantityNotPositiveInteger": "The quantity must be a whole number greater than zero, or empty for as many as needed."
+  }
+}

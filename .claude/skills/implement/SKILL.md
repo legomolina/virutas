@@ -1,13 +1,16 @@
 ---
 name: implement
-description: Take one GitHub issue to an open, green PR, inside a worktree made by /create-worktree.
+description: Take one GitHub issue to an open, green PR in its own worktree, creating the worktree first when run from the main checkout.
 disable-model-invocation: true
 argument-hint: <issue-number>
 ---
 
 Issue: `$ARGUMENTS`. Without a number, ask for one.
 
-This runs inside a linked worktree: `git rev-parse --git-dir` differs from `git rev-parse --git-common-dir`. In the main checkout, stop and tell the user to run `/create-worktree <n>` first.
+The work happens in the issue's linked worktree, `<main checkout>-<n>`. A session is in a linked worktree when `git rev-parse --git-dir` differs from `git rev-parse --git-common-dir`.
+
+- **In the main checkout**: set up the worktree with steps 1–4 of `.claude/skills/create-worktree/SKILL.md`, with two changes: skip its `Setup #<n>` title (this skill sets its own below) and skip its step 5. Every stop in steps 1–4 is a stop here too. Then load the deferred `EnterWorktree` tool (ToolSearch `select:EnterWorktree`) and call it with `path` set to the `worktree=` line the script printed. Check that `git rev-parse --show-toplevel` now prints that same path. When the tool is unavailable or the check fails, stop and give the user what step 5 of `/create-worktree` gives: the folder, `/implement <n>` and the model advice.
+- **In a linked worktree**: its folder must end in `-<n>`. Otherwise stop: it belongs to another issue.
 
 Other sessions run in parallel worktrees, so this one owns the port **4200 + issue number**. Use it everywhere:
 

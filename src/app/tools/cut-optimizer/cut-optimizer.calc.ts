@@ -63,8 +63,32 @@ export interface UnplacedPart {
   readonly reason: 'too-long' | 'insufficient-stock';
 }
 
+/** Identical layouts: same Stock length and the same Parts (length and name) in the same order. */
+export interface LayoutGroup {
+  /** The first of the identical layouts, in plan order. */
+  readonly layout: StockLayout;
+  readonly count: number;
+}
+
+export interface StockUsed {
+  readonly stockLengthMillimetres: number;
+  /** How many Stock of this length the plan uses (how many to buy from unlimited entries). */
+  readonly count: number;
+}
+
+export interface PlanTotals {
+  /** Ordered from the shortest Stock length to the longest. */
+  readonly stockUsed: readonly StockUsed[];
+  /** Leftover Waste plus Trim plus Kerf, over every Stock. */
+  readonly wasteMillimetres: number;
+  /** The length of every Offcut, in layout order. */
+  readonly offcutLengthsMillimetres: readonly number[];
+}
+
 export interface CuttingPlan {
   readonly layouts: readonly StockLayout[];
+  readonly groups: readonly LayoutGroup[];
+  readonly totals: PlanTotals;
   readonly unplacedParts: readonly UnplacedPart[];
 }
 
@@ -116,6 +140,54 @@ function withName<T extends object>(
   name: string | undefined,
 ): T & { readonly name?: string } {
   return name === undefined ? value : { name, ...value };
+}
+
+/** Groups identical layouts with a count, in order of first appearance. */
+export function groupLayouts(layouts: readonly StockLayout[]): LayoutGroup[] {
+  const groups = new Map<string, { layout: StockLayout; count: number }>();
+  for (const stockLayout of layouts) {
+    const key = JSON.stringify([
+      stockLayout.stockLengthMillimetres,
+      stockLayout.parts.map((part) => [part.name ?? null, part.lengthMillimetres]),
+    ]);
+    const group = groups.get(key);
+    if (group === undefined) {
+      groups.set(key, { layout: stockLayout, count: 1 });
+    } else {
+      group.count += 1;
+    }
+  }
+  return [...groups.values()];
+}
+
+/**
+ * Totals the plan. Waste is whatever is neither a Part nor an Offcut, which is the leftover Waste,
+ * the Trim and the Kerf of every Cut.
+ */
+export function totalLayouts(layouts: readonly StockLayout[]): PlanTotals {
+  const counts = new Map<number, number>();
+  const offcuts: number[] = [];
+  let wasteMillimetres = 0;
+  for (const stockLayout of layouts) {
+    counts.set(
+      stockLayout.stockLengthMillimetres,
+      (counts.get(stockLayout.stockLengthMillimetres) ?? 0) + 1,
+    );
+    const partsLength = stockLayout.parts.reduce((sum, part) => sum + part.lengthMillimetres, 0);
+    let offcutMillimetres = 0;
+    if (stockLayout.leftover.kind === 'offcut') {
+      offcutMillimetres = stockLayout.leftover.lengthMillimetres;
+      offcuts.push(offcutMillimetres);
+    }
+    wasteMillimetres += stockLayout.stockLengthMillimetres - partsLength - offcutMillimetres;
+  }
+  return {
+    stockUsed: [...counts]
+      .map(([stockLengthMillimetres, count]) => ({ stockLengthMillimetres, count }))
+      .sort((a, b) => a.stockLengthMillimetres - b.stockLengthMillimetres),
+    wasteMillimetres,
+    offcutLengthsMillimetres: offcuts,
+  };
 }
 
 /** Length the Parts take from the usable length: one Kerf between consecutive Parts. */
@@ -357,8 +429,11 @@ const fewestStock: Strategy = (input) => {
   const { bins, unplaced } = firstFitDecreasing(parts, entries, settings.kerfMillimetres);
   // First-fit reserved a Stock that holds every Bin, so a shortest-first assignment exists.
   const best = improve(assignStock(bins, entries, settings.kerfMillimetres)!, entries, settings);
+  const layouts = best.bins.map((bin, position) => toLayout(bin, best.stock[position], settings));
   return {
-    layouts: best.bins.map((bin, position) => toLayout(bin, best.stock[position], settings)),
+    layouts,
+    groups: groupLayouts(layouts),
+    totals: totalLayouts(layouts),
     unplacedParts: parts
       .filter((part) => unplaced.has(part.order))
       .sort((a, b) => a.order - b.order)
