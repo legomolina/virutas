@@ -44,7 +44,7 @@ describe('CutOptimizerPage', () => {
     const fixture = render();
     await fixture.whenStable();
 
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+    expect((fixture.nativeElement as HTMLElement).querySelector('p')?.textContent.trim()).toBe(
       'Plan how to cut your Parts out of your Stock with the least Waste.',
     );
   });
@@ -54,7 +54,7 @@ describe('CutOptimizerPage', () => {
     TestBed.inject(TranslocoService).setActiveLang('es');
     await fixture.whenStable();
 
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+    expect((fixture.nativeElement as HTMLElement).querySelector('p')?.textContent.trim()).toBe(
       'Planifica cómo cortar tus piezas del material con el mínimo desperdicio.',
     );
   });
