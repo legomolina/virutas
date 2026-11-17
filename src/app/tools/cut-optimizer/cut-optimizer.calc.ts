@@ -83,6 +83,8 @@ const EPSILON_MILLIMETRES = 1e-9;
 interface Part {
   readonly name?: string;
   readonly lengthMillimetres: number;
+  /** Position in the Cut List, one per unit of quantity; Unplaced Parts are reported in this order. */
+  readonly order: number;
   /** Position in the longest-first order; Parts on a Stock are kept in this order. */
   readonly rank: number;
 }
@@ -95,7 +97,11 @@ interface Entry {
   readonly quantity: number;
 }
 
-/** The Parts cut from one Stock, in rank order. */
+function isUnlimited(entry: Entry): boolean {
+  return entry.quantity === Infinity;
+}
+
+/** The Parts cut from one Stock, in rank order (a Stock layout before it has its Stock entry). */
 type Bin = readonly Part[];
 
 interface Candidate {
@@ -138,9 +144,13 @@ function leftover(remaining: number, settings: JobSettings): Leftover {
   return { kind, lengthMillimetres: left };
 }
 
+function leftoverOf(bin: Bin, entry: Entry, settings: JobSettings): Leftover {
+  return leftover(entry.usableMillimetres - needed(bin, settings.kerfMillimetres), settings);
+}
+
 function toLayout(bin: Bin, entry: Entry, settings: JobSettings): StockLayout {
   const { kerfMillimetres, trimMillimetres } = settings;
-  const end = leftover(entry.usableMillimetres - needed(bin, kerfMillimetres), settings);
+  const end = leftoverOf(bin, entry, settings);
   let start = trimMillimetres;
   const parts = bin.map((part) => {
     const placed = withName(
@@ -201,12 +211,7 @@ function compare(a: Candidate, b: Candidate, settings: JobSettings): number {
   }
   const offcuts = (candidate: Candidate): number[] =>
     candidate.bins
-      .map((bin, position) =>
-        leftover(
-          candidate.stock[position].usableMillimetres - needed(bin, settings.kerfMillimetres),
-          settings,
-        ),
-      )
+      .map((bin, position) => leftoverOf(bin, candidate.stock[position], settings))
       .filter((end) => end.kind === 'offcut')
       .map((end) => end.lengthMillimetres)
       .sort((x, y) => y - x);
@@ -252,14 +257,9 @@ function improve(start: Candidate, entries: readonly Entry[], settings: JobSetti
   return best;
 }
 
-/**
- * The fewest Stock Strategy: first-fit decreasing into the longest Stock still available, then
- * the shortest Stock that holds each layout, then single-Part moves that improve the plan.
- * Deterministic; not guaranteed optimal.
- */
-const fewestStock: Strategy = (input) => {
-  const { settings } = input;
-  const entries: Entry[] = input.stock
+/** The Stock entries, shortest usable length first, limited before unlimited of the same length. */
+function toEntries(stock: readonly StockEntry[], settings: JobSettings): Entry[] {
+  return stock
     .map((entry, index) => ({
       index,
       lengthMillimetres: entry.lengthMillimetres,
@@ -269,9 +269,13 @@ const fewestStock: Strategy = (input) => {
     .sort(
       (a, b) =>
         a.usableMillimetres - b.usableMillimetres ||
-        Number(a.quantity === Infinity) - Number(b.quantity === Infinity),
+        Number(isUnlimited(a)) - Number(isUnlimited(b)),
     );
-  const parts = input.cutList
+}
+
+/** One Part per unit of quantity, longest first, Cut List order between equal lengths. */
+function toParts(cutList: readonly CutListEntry[]): Part[] {
+  return cutList
     .flatMap((entry) =>
       Array.from({ length: entry.quantity }, () => ({
         name: entry.name,
@@ -281,19 +285,35 @@ const fewestStock: Strategy = (input) => {
     .map((part, order) => ({ ...part, order }))
     .sort((a, b) => b.lengthMillimetres - a.lengthMillimetres)
     .map((part, rank) => ({ ...part, rank }));
+}
 
+interface FirstFit {
+  readonly bins: readonly Bin[];
+  /** By Part `order`. */
+  readonly unplaced: ReadonlyMap<number, UnplacedPart['reason']>;
+}
+
+/**
+ * Places each Part, longest first, on the first Stock it fits, else on a new Stock of the longest
+ * entry still available that holds it, else reports it as an Unplaced Part.
+ */
+function firstFitDecreasing(
+  parts: readonly Part[],
+  entries: readonly Entry[],
+  kerfMillimetres: number,
+): FirstFit {
   const remaining = entries.map((entry) => entry.quantity);
-  const open: { parts: Part[]; capacityMillimetres: number }[] = [];
+  const open: { parts: Part[]; entry: Entry }[] = [];
   const unplaced = new Map<number, UnplacedPart['reason']>();
   for (const part of parts) {
     const target = open.find((bin) =>
-      holds(bin.capacityMillimetres, needed([...bin.parts, part], settings.kerfMillimetres)),
+      holds(bin.entry.usableMillimetres, needed([...bin.parts, part], kerfMillimetres)),
     );
     if (target !== undefined) {
       target.parts.push(part);
       continue;
     }
-    // The longest entry still available that holds the Part: entries are sorted shortest first.
+    // Entries are sorted shortest first, so the last match is the longest.
     const choice = entries.reduce(
       (found, entry, index) =>
         remaining[index] > 0 && holds(entry.usableMillimetres, part.lengthMillimetres)
@@ -309,16 +329,23 @@ const fewestStock: Strategy = (input) => {
       continue;
     }
     remaining[choice] -= 1;
-    open.push({ parts: [part], capacityMillimetres: entries[choice].usableMillimetres });
+    open.push({ parts: [part], entry: entries[choice] });
   }
+  return { bins: open.map((bin) => bin.parts), unplaced };
+}
 
-  // The Stock reserved above holds every Bin, so a shortest-first assignment exists.
-  const start = assignStock(
-    open.map((bin) => bin.parts),
-    entries,
-    settings.kerfMillimetres,
-  )!;
-  const best = improve(start, entries, settings);
+/**
+ * The fewest Stock Strategy: first-fit decreasing into the longest Stock still available, then
+ * the shortest Stock that holds each layout, then single-Part moves that improve the plan.
+ * Deterministic; not guaranteed optimal.
+ */
+const fewestStock: Strategy = (input) => {
+  const { settings } = input;
+  const entries = toEntries(input.stock, settings);
+  const parts = toParts(input.cutList);
+  const { bins, unplaced } = firstFitDecreasing(parts, entries, settings.kerfMillimetres);
+  // First-fit reserved a Stock that holds every Bin, so a shortest-first assignment exists.
+  const best = improve(assignStock(bins, entries, settings.kerfMillimetres)!, entries, settings);
   return {
     layouts: best.bins.map((bin, position) => toLayout(bin, best.stock[position], settings)),
     unplacedParts: parts
