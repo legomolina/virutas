@@ -1,5 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
-import { provideTranslocoScope, TranslocoPipe } from '@jsverse/transloco';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { provideTranslocoScope, TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { cutOptimizerDefaults } from '../../core/settings/cut-optimizer-defaults.calc';
 import type { CutOptimizerSetting } from '../../core/settings/settings-store';
 import { SettingsStore } from '../../core/settings/settings-store';
@@ -18,6 +19,14 @@ import { LengthSettingField } from './components/length-setting-field/length-set
 })
 export class CutOptimizerSettings {
   protected readonly settings = inject(SettingsStore);
+
+  /**
+   * The Tool's translations, set once its scope has loaded. The fields wait for them so they
+   * never appear without a label.
+   */
+  protected readonly translations = toSignal(
+    inject(TranslocoService).selectTranslation('cut-optimizer'),
+  );
 
   /** What applies under the preferred Unit System when the user has set nothing. */
   protected readonly fallback = computed(() => cutOptimizerDefaults(this.settings.unitSystem()));

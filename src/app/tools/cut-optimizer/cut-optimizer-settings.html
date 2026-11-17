@@ -1,24 +1,26 @@
-<wt-length-setting-field
-  name="cut-optimizer-kerf"
-  [label]="'cutOptimizer.settings.kerf' | transloco"
-  [millimetres]="userValue('kerf')"
-  [defaultMillimetres]="fallback().kerfMillimetres"
-  (lengthChange)="settings.setCutOptimizerKerf($event)"
-  (defaultRequested)="settings.resetCutOptimizerDefault('kerf')"
-/>
-<wt-length-setting-field
-  name="cut-optimizer-trim"
-  [label]="'cutOptimizer.settings.trim' | transloco"
-  [millimetres]="userValue('trim')"
-  [defaultMillimetres]="fallback().trimMillimetres"
-  (lengthChange)="settings.setCutOptimizerTrim($event)"
-  (defaultRequested)="settings.resetCutOptimizerDefault('trim')"
-/>
-<wt-length-setting-field
-  name="cut-optimizer-minimum-offcut-length"
-  [label]="'cutOptimizer.settings.minimumOffcutLength' | transloco"
-  [millimetres]="userValue('minimumOffcutLength')"
-  [defaultMillimetres]="fallback().minimumOffcutLengthMillimetres"
-  (lengthChange)="settings.setCutOptimizerMinimumOffcutLength($event)"
-  (defaultRequested)="settings.resetCutOptimizerDefault('minimumOffcutLength')"
-/>
+@if (translations()) {
+  <wt-length-setting-field
+    name="cut-optimizer-kerf"
+    [label]="'cutOptimizer.settings.kerf' | transloco"
+    [millimetres]="userValue('kerf')"
+    [defaultMillimetres]="fallback().kerfMillimetres"
+    (lengthChange)="settings.setCutOptimizerKerf($event)"
+    (defaultRequested)="settings.resetCutOptimizerDefault('kerf')"
+  />
+  <wt-length-setting-field
+    name="cut-optimizer-trim"
+    [label]="'cutOptimizer.settings.trim' | transloco"
+    [millimetres]="userValue('trim')"
+    [defaultMillimetres]="fallback().trimMillimetres"
+    (lengthChange)="settings.setCutOptimizerTrim($event)"
+    (defaultRequested)="settings.resetCutOptimizerDefault('trim')"
+  />
+  <wt-length-setting-field
+    name="cut-optimizer-minimum-offcut-length"
+    [label]="'cutOptimizer.settings.minimumOffcutLength' | transloco"
+    [millimetres]="userValue('minimumOffcutLength')"
+    [defaultMillimetres]="fallback().minimumOffcutLengthMillimetres"
+    (lengthChange)="settings.setCutOptimizerMinimumOffcutLength($event)"
+    (defaultRequested)="settings.resetCutOptimizerDefault('minimumOffcutLength')"
+  />
+}
