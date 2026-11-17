@@ -1,0 +1,54 @@
+<section id="stock" aria-labelledby="stock-title">
+  <hgroup>
+    <h2 id="stock-title">{{ 'cutOptimizer.stock.title' | transloco }}</h2>
+    <p>{{ 'cutOptimizer.stock.description' | transloco }}</p>
+  </hgroup>
+
+  @for (item of rows(); track item.row.id; let n = $index) {
+    @let row = item.row;
+    @let errors = item.errors;
+    @let lengthError =
+      errors.length === 'unreadable'
+        ? ('cutOptimizer.errors.lengthUnreadable' | transloco)
+        : errors.length === 'not-positive'
+          ? ('cutOptimizer.errors.lengthNotPositive' | transloco)
+          : undefined;
+    @let quantityError =
+      errors.quantity === 'not-positive-integer'
+        ? ('cutOptimizer.errors.quantityNotPositiveInteger' | transloco)
+        : undefined;
+
+    <fieldset>
+      <legend>{{ 'cutOptimizer.stock.entry' | transloco: { n: n + 1 } }}</legend>
+      <wt-text-field
+        [name]="'stock-' + row.id + '-length'"
+        [label]="'cutOptimizer.stock.length.label' | transloco"
+        [error]="lengthError"
+        measurement
+        [value]="row.length"
+        (valueChange)="setLength(row.id, $event)"
+      />
+      <wt-text-field
+        [name]="'stock-' + row.id + '-quantity'"
+        [label]="'cutOptimizer.stock.quantity.label' | transloco"
+        [hint]="'cutOptimizer.stock.quantity.hint' | transloco"
+        [error]="quantityError"
+        measurement
+        [value]="row.quantity"
+        (valueChange)="setQuantity(row.id, $event)"
+      />
+      <button
+        wt-button
+        type="button"
+        [attr.aria-label]="'cutOptimizer.stock.removeLabel' | transloco: { n: n + 1 }"
+        (click)="remove(row.id)"
+      >
+        {{ 'cutOptimizer.stock.remove' | transloco }}
+      </button>
+    </fieldset>
+  }
+
+  <button #addButton wt-button type="button" (click)="add()">
+    {{ 'cutOptimizer.stock.add' | transloco }}
+  </button>
+</section>

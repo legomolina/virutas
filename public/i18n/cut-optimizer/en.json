@@ -1,1 +1,18 @@
-{ "intro": "Plan how to cut your Parts out of your Stock with the least Waste." }
+{
+  "intro": "Plan how to cut your Parts out of your Stock with the least Waste.",
+  "stock": {
+    "title": "Stock",
+    "description": "The lengths you can cut from. For example 2400, 94 1/2\" or 2400 mm; without a unit, numbers use your preferred Unit System.",
+    "entry": "Stock {{ n }}",
+    "length": { "label": "Length" },
+    "quantity": { "label": "Quantity", "hint": "Empty means as many as needed." },
+    "add": "Add Stock",
+    "remove": "Remove",
+    "removeLabel": "Remove Stock {{ n }}"
+  },
+  "errors": {
+    "lengthUnreadable": "That length can't be read. Try something like 2400, 94 1/2\" or 2400 mm.",
+    "lengthNotPositive": "A length must be greater than zero.",
+    "quantityNotPositiveInteger": "The quantity must be a whole number greater than zero, or empty for as many as needed."
+  }
+}

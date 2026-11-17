@@ -1,7 +1,7 @@
 import type { UnitSystem } from '../../shared/measurement/unit-system';
 import type { BevelFace } from './bevel-fence.calc';
 import { calculateFencePosition, readBevelAngle } from './bevel-fence.calc';
-import { readLength } from '../../shared/measurement/read-length.calc';
+import { readPositiveLength } from '../../shared/measurement/read-positive-length.calc';
 
 /** What the woodworker typed, exactly as typed, and which face the length belongs to. */
 export interface FencePositionFormTexts {
@@ -36,23 +36,6 @@ export interface FencePositionFormResult {
   readonly minimumLongFaceMillimetres?: number;
   /** Set with the `long-face-too-short` error: the Bevel Angle it applies to. */
   readonly bevelAngleDegrees?: number;
-}
-
-type LengthReading =
-  | { readonly state: 'empty' }
-  | { readonly state: 'error'; readonly error: 'unreadable' | 'not-positive' }
-  | { readonly state: 'ok'; readonly millimetres: number };
-
-function readPositiveLength(text: string, unitSystem: UnitSystem): LengthReading {
-  const reading = readLength(text, unitSystem);
-  if (!reading.ok) {
-    return reading.error === 'empty'
-      ? { state: 'empty' }
-      : { state: 'error', error: reading.error === 'negative' ? 'not-positive' : 'unreadable' };
-  }
-  return reading.millimetres > 0
-    ? { state: 'ok', millimetres: reading.millimetres }
-    : { state: 'error', error: 'not-positive' };
 }
 
 /**
