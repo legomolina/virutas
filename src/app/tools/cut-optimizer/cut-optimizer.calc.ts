@@ -5,6 +5,8 @@
 
 export interface StockEntry {
   readonly lengthMillimetres: number;
+  /** A positive integer: how many of this Stock there are. Absent means unlimited. */
+  readonly quantity?: number;
 }
 
 export interface CutListEntry {
@@ -19,6 +21,7 @@ export interface JobSettings {
   /** Removed at each end of every Stock, including the Kerf of the Cut that removes it. */
   readonly trimMillimetres: number;
   readonly minimumOffcutLengthMillimetres: number;
+  readonly strategy: StrategyId;
 }
 
 export interface CutOptimizerInput {
@@ -41,6 +44,8 @@ export interface Leftover {
 }
 
 export interface StockLayout {
+  /** Position in `CutOptimizerInput.stock` of the Stock entry this Stock comes from. */
+  readonly stockEntryIndex: number;
   readonly stockLengthMillimetres: number;
   readonly parts: readonly PlacedPart[];
   /** Cuts between Parts plus the one after the last Part when something is left; Trim Cuts are not counted. */
@@ -51,8 +56,11 @@ export interface StockLayout {
 export interface UnplacedPart {
   readonly name?: string;
   readonly lengthMillimetres: number;
-  /** Longer than the usable length of every Stock entry. */
-  readonly reason: 'too-long';
+  /**
+   * `too-long`: longer than the usable length of every Stock entry; `insufficient-stock`: would fit,
+   * but the limited Stock it fits ran out and no unlimited entry fits it.
+   */
+  readonly reason: 'too-long' | 'insufficient-stock';
 }
 
 /** Identical layouts: same Stock length and the same Parts (length and name) in the same order. */
@@ -84,6 +92,12 @@ export interface CuttingPlan {
   readonly unplacedParts: readonly UnplacedPart[];
 }
 
+/** The Strategies a Cutting Plan can be built with. */
+export type StrategyId = 'fewest-stock';
+
+/** Turns the input into a Cutting Plan following one optimization criterion. */
+export type Strategy = (input: CutOptimizerInput) => CuttingPlan;
+
 /** Trim is taken from both ends of every Stock. */
 const TRIMMED_ENDS = 2;
 
@@ -93,48 +107,31 @@ const EPSILON_MILLIMETRES = 1e-9;
 interface Part {
   readonly name?: string;
   readonly lengthMillimetres: number;
+  /** Position in the Cut List, one per unit of quantity; Unplaced Parts are reported in this order. */
+  readonly order: number;
+  /** Position in the longest-first order; Parts on a Stock are kept in this order. */
+  readonly rank: number;
 }
 
-interface OpenStock {
-  readonly stockLengthMillimetres: number;
+interface Entry {
+  readonly index: number;
+  readonly lengthMillimetres: number;
   readonly usableMillimetres: number;
-  readonly parts: PlacedPart[];
-  /** Length taken from the usable length by Parts and the Kerfs between them. */
-  usedMillimetres: number;
+  /** `Infinity` for unlimited Stock. */
+  readonly quantity: number;
 }
 
-/** One Kerf separates a Part from the one before it; the first Part has none. */
-function kerfBefore(stock: OpenStock, kerfMillimetres: number): number {
-  return stock.parts.length > 0 ? kerfMillimetres : 0;
+function isUnlimited(entry: Entry): boolean {
+  return entry.quantity === Infinity;
 }
 
-function fits(part: Part, stock: OpenStock, kerfMillimetres: number): boolean {
-  const room = stock.usableMillimetres - stock.usedMillimetres - kerfBefore(stock, kerfMillimetres);
-  return part.lengthMillimetres <= room + EPSILON_MILLIMETRES;
-}
+/** The Parts cut from one Stock, in rank order (a Stock layout before it has its Stock entry). */
+type Bin = readonly Part[];
 
-function layout(stock: OpenStock, cuts: number, leftover: Leftover): StockLayout {
-  return {
-    stockLengthMillimetres: stock.stockLengthMillimetres,
-    parts: stock.parts,
-    cuts,
-    leftover,
-  };
-}
-
-function toLayout(stock: OpenStock, settings: JobSettings): StockLayout {
-  const cutsBetweenParts = stock.parts.length - 1;
-  const remaining = stock.usableMillimetres - stock.usedMillimetres;
-  if (remaining <= EPSILON_MILLIMETRES) {
-    return layout(stock, cutsBetweenParts, { kind: 'none', lengthMillimetres: 0 });
-  }
-  if (remaining <= settings.kerfMillimetres + EPSILON_MILLIMETRES) {
-    return layout(stock, cutsBetweenParts + 1, { kind: 'waste', lengthMillimetres: remaining });
-  }
-  const left = remaining - settings.kerfMillimetres;
-  const kind =
-    left >= settings.minimumOffcutLengthMillimetres - EPSILON_MILLIMETRES ? 'offcut' : 'waste';
-  return layout(stock, cutsBetweenParts + 1, { kind, lengthMillimetres: left });
+interface Candidate {
+  readonly bins: readonly Bin[];
+  /** The Stock entry each Bin is cut from, by position. */
+  readonly stock: readonly Entry[];
 }
 
 /** Adds `name` only when there is one, so unnamed Parts have no `name` key. */
@@ -193,63 +190,275 @@ export function totalLayouts(layouts: readonly StockLayout[]): PlanTotals {
   };
 }
 
-/**
- * Builds a Cutting Plan for Stock of unlimited quantity, placing Parts first-fit decreasing: the
- * longest Parts first, each into the first open Stock it fits, else into a new Stock of the
- * shortest entry that can hold it. Deterministic.
- */
-export function planCuts(input: CutOptimizerInput): CuttingPlan {
-  const { kerfMillimetres, trimMillimetres } = input.settings;
-  const entries = input.stock
-    .map((entry) => ({
-      stockLengthMillimetres: entry.lengthMillimetres,
-      usableMillimetres: entry.lengthMillimetres - TRIMMED_ENDS * trimMillimetres,
-    }))
-    .sort((a, b) => a.usableMillimetres - b.usableMillimetres);
-  const parts = input.cutList.flatMap((entry) =>
-    Array.from({ length: entry.quantity }, (): Part => ({
-      name: entry.name,
-      lengthMillimetres: entry.lengthMillimetres,
-    })),
+/** Length the Parts take from the usable length: one Kerf between consecutive Parts. */
+function needed(bin: Bin, kerfMillimetres: number): number {
+  return bin.reduce(
+    (total, part, position) =>
+      total + part.lengthMillimetres + (position > 0 ? kerfMillimetres : 0),
+    0,
   );
+}
 
-  const open: OpenStock[] = [];
-  const unplaced = new Set<Part>();
-  for (const part of [...parts].sort((a, b) => b.lengthMillimetres - a.lengthMillimetres)) {
-    let target = open.find((stock) => fits(part, stock, kerfMillimetres));
-    if (target === undefined) {
-      const entry = entries.find(
-        (candidate) => part.lengthMillimetres <= candidate.usableMillimetres + EPSILON_MILLIMETRES,
-      );
-      if (entry === undefined) {
-        unplaced.add(part);
-        continue;
-      }
-      target = { ...entry, parts: [], usedMillimetres: 0 };
-      open.push(target);
-    }
-    const start = target.usedMillimetres + kerfBefore(target, kerfMillimetres);
-    target.parts.push(
-      withName(
-        { lengthMillimetres: part.lengthMillimetres, startMillimetres: trimMillimetres + start },
-        part.name,
-      ),
-    );
-    target.usedMillimetres = start + part.lengthMillimetres;
+function holds(usableMillimetres: number, lengthMillimetres: number): boolean {
+  return lengthMillimetres <= usableMillimetres + EPSILON_MILLIMETRES;
+}
+
+function leftover(remaining: number, settings: JobSettings): Leftover {
+  if (remaining <= EPSILON_MILLIMETRES) {
+    return { kind: 'none', lengthMillimetres: 0 };
   }
+  if (remaining <= settings.kerfMillimetres + EPSILON_MILLIMETRES) {
+    return { kind: 'waste', lengthMillimetres: remaining };
+  }
+  const left = remaining - settings.kerfMillimetres;
+  const kind =
+    left >= settings.minimumOffcutLengthMillimetres - EPSILON_MILLIMETRES ? 'offcut' : 'waste';
+  return { kind, lengthMillimetres: left };
+}
 
-  const layouts = open.map((stock) => toLayout(stock, input.settings));
+function leftoverOf(bin: Bin, entry: Entry, settings: JobSettings): Leftover {
+  return leftover(entry.usableMillimetres - needed(bin, settings.kerfMillimetres), settings);
+}
+
+function toLayout(bin: Bin, entry: Entry, settings: JobSettings): StockLayout {
+  const { kerfMillimetres, trimMillimetres } = settings;
+  const end = leftoverOf(bin, entry, settings);
+  let start = trimMillimetres;
+  const parts = bin.map((part) => {
+    const placed = withName(
+      { lengthMillimetres: part.lengthMillimetres, startMillimetres: start },
+      part.name,
+    );
+    start += part.lengthMillimetres + kerfMillimetres;
+    return placed;
+  });
+  return {
+    stockEntryIndex: entry.index,
+    stockLengthMillimetres: entry.lengthMillimetres,
+    parts,
+    cuts: bin.length - 1 + (end.kind === 'none' ? 0 : 1),
+    leftover: end,
+  };
+}
+
+/**
+ * Gives each Bin, longest first, the shortest Stock on hand that still holds it, else the shortest
+ * Stock to buy; `undefined` when the Stock runs out. Longest first, so the Stock on hand goes to the
+ * Bins that would cost the most to buy for.
+ */
+function assignStock(
+  bins: readonly Bin[],
+  entries: readonly Entry[],
+  kerfMillimetres: number,
+): Candidate | undefined {
+  const remaining = entries.map((entry) => entry.quantity);
+  const order = bins
+    .map((bin, position) => ({ position, length: needed(bin, kerfMillimetres) }))
+    .sort((a, b) => b.length - a.length);
+  const stock: Entry[] = [];
+  for (const { position, length } of order) {
+    const choice = entries.findIndex(
+      (entry, index) => remaining[index] > 0 && holds(entry.usableMillimetres, length),
+    );
+    if (choice < 0) {
+      return undefined;
+    }
+    remaining[choice] -= 1;
+    stock[position] = entries[choice];
+  }
+  return { bins, stock };
+}
+
+function totalLength(stock: readonly Entry[]): number {
+  return stock.reduce((total, entry) => total + entry.lengthMillimetres, 0);
+}
+
+/**
+ * What the fewest Stock Strategy minimizes, most important first: Stock to buy, length to buy,
+ * Stock used, length used, then the Offcuts from longest to shortest, negated so that longer is
+ * smaller.
+ */
+function cost(candidate: Candidate, settings: JobSettings): number[] {
+  const bought = candidate.stock.filter(isUnlimited);
+  const offcuts = candidate.bins
+    .map((bin, position) => leftoverOf(bin, candidate.stock[position], settings))
+    .filter((end) => end.kind === 'offcut')
+    .map((end) => end.lengthMillimetres)
+    .sort((x, y) => y - x);
+  return [
+    bought.length,
+    totalLength(bought),
+    candidate.stock.length,
+    totalLength(candidate.stock),
+    ...offcuts.map((length) => -length),
+  ];
+}
+
+/** Compares costs position by position, a missing Offcut counting as 0. Negative when `a` is better. */
+function compare(costA: readonly number[], costB: readonly number[]): number {
+  for (let position = 0; position < Math.max(costA.length, costB.length); position++) {
+    const difference = (costA[position] ?? 0) - (costB[position] ?? 0);
+    if (Math.abs(difference) > EPSILON_MILLIMETRES) {
+      return difference;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Moves one Part to Bin `to`, or onto a new Stock when `to` is past the last Bin, dropping the Bin it
+ * leaves when that Bin is left empty.
+ */
+function move(bins: readonly Bin[], part: Part, to: number): Bin[] {
+  return [...bins, []].flatMap((bin, position) => {
+    const rest = bin.filter((other) => other !== part);
+    const moved = position === to ? [...rest, part].sort((x, y) => x.rank - y.rank) : rest;
+    return moved.length > 0 ? [moved] : [];
+  });
+}
+
+/**
+ * Repeatedly moves single Parts to another Stock while that lowers the `cost` of the Cutting Plan,
+ * until no move does.
+ */
+function improve(start: Candidate, entries: readonly Entry[], settings: JobSettings): Candidate {
+  let best = start;
+  let bestCost = cost(best, settings);
+  const longestUsable = Math.max(...entries.map((entry) => entry.usableMillimetres));
+  let improved = true;
+  while (improved) {
+    improved = false;
+    for (const part of best.bins.flat()) {
+      for (let to = 0; to <= best.bins.length; to++) {
+        // Only saves time: a Part that fits no Stock with the Parts already there is never a move.
+        const crowded = [...(best.bins.at(to) ?? []), part];
+        if (!holds(longestUsable, needed(crowded, settings.kerfMillimetres))) {
+          continue;
+        }
+        const candidate = assignStock(move(best.bins, part, to), entries, settings.kerfMillimetres);
+        if (candidate === undefined) {
+          continue;
+        }
+        const candidateCost = cost(candidate, settings);
+        if (compare(candidateCost, bestCost) < 0) {
+          best = candidate;
+          bestCost = candidateCost;
+          improved = true;
+        }
+      }
+    }
+  }
+  return best;
+}
+
+/** The Stock entries: on hand (limited) before to buy (unlimited), each shortest usable length first. */
+function toEntries(stock: readonly StockEntry[], settings: JobSettings): Entry[] {
+  return stock
+    .map((entry, index) => ({
+      index,
+      lengthMillimetres: entry.lengthMillimetres,
+      usableMillimetres: entry.lengthMillimetres - TRIMMED_ENDS * settings.trimMillimetres,
+      quantity: entry.quantity ?? Infinity,
+    }))
+    .sort(
+      (a, b) =>
+        Number(isUnlimited(a)) - Number(isUnlimited(b)) ||
+        a.usableMillimetres - b.usableMillimetres,
+    );
+}
+
+/** One Part per unit of quantity, longest first, Cut List order between equal lengths. */
+function toParts(cutList: readonly CutListEntry[]): Part[] {
+  return cutList
+    .flatMap((entry) =>
+      Array.from({ length: entry.quantity }, () => ({
+        name: entry.name,
+        lengthMillimetres: entry.lengthMillimetres,
+      })),
+    )
+    .map((part, order) => ({ ...part, order }))
+    .sort((a, b) => b.lengthMillimetres - a.lengthMillimetres)
+    .map((part, rank) => ({ ...part, rank }));
+}
+
+interface FirstFit {
+  readonly bins: readonly Bin[];
+  /** By Part `order`. */
+  readonly unplaced: ReadonlyMap<number, UnplacedPart['reason']>;
+}
+
+/**
+ * Places each Part, longest first, on the first Stock it fits, else on a new Stock: the longest on
+ * hand that holds it, else the longest to buy, else it is an Unplaced Part.
+ */
+function firstFitDecreasing(
+  parts: readonly Part[],
+  entries: readonly Entry[],
+  kerfMillimetres: number,
+): FirstFit {
+  const remaining = entries.map((entry) => entry.quantity);
+  const open: { parts: Part[]; entry: Entry }[] = [];
+  const unplaced = new Map<number, UnplacedPart['reason']>();
+  for (const part of parts) {
+    const target = open.find((bin) =>
+      holds(bin.entry.usableMillimetres, needed([...bin.parts, part], kerfMillimetres)),
+    );
+    if (target !== undefined) {
+      target.parts.push(part);
+      continue;
+    }
+    const fitting = entries.flatMap((entry, index) =>
+      remaining[index] > 0 && holds(entry.usableMillimetres, part.lengthMillimetres) ? [index] : [],
+    );
+    const onHand = fitting.filter((index) => !isUnlimited(entries[index]));
+    // Each group is sorted shortest first, so its last entry is the longest.
+    const choice = (onHand.length > 0 ? onHand : fitting).at(-1);
+    if (choice === undefined) {
+      const fitsAny = entries.some((entry) =>
+        holds(entry.usableMillimetres, part.lengthMillimetres),
+      );
+      unplaced.set(part.order, fitsAny ? 'insufficient-stock' : 'too-long');
+      continue;
+    }
+    remaining[choice] -= 1;
+    open.push({ parts: [part], entry: entries[choice] });
+  }
+  return { bins: open.map((bin) => bin.parts), unplaced };
+}
+
+/**
+ * The fewest Stock Strategy: Stock on hand before Stock to buy, then as few Stock and as little
+ * length as possible, then the longest Offcuts (see `cost`). First-fit decreasing into the longest
+ * Stock available, then the shortest Stock that holds each layout, then single-Part moves that
+ * lower the cost. Deterministic; not guaranteed optimal.
+ */
+const fewestStock: Strategy = (input) => {
+  const { settings } = input;
+  const entries = toEntries(input.stock, settings);
+  const parts = toParts(input.cutList);
+  const { bins, unplaced } = firstFitDecreasing(parts, entries, settings.kerfMillimetres);
+  // First-fit reserved a Stock that holds every Bin, so a shortest-first assignment exists.
+  const best = improve(assignStock(bins, entries, settings.kerfMillimetres)!, entries, settings);
+  const layouts = best.bins.map((bin, position) => toLayout(bin, best.stock[position], settings));
   return {
     layouts,
     groups: groupLayouts(layouts),
     totals: totalLayouts(layouts),
     unplacedParts: parts
-      .filter((part) => unplaced.has(part))
+      .filter((part) => unplaced.has(part.order))
+      .sort((a, b) => a.order - b.order)
       .map((part) =>
         withName(
-          { lengthMillimetres: part.lengthMillimetres, reason: 'too-long' as const },
+          { lengthMillimetres: part.lengthMillimetres, reason: unplaced.get(part.order)! },
           part.name,
         ),
       ),
   };
+};
+
+const STRATEGIES: Readonly<Record<StrategyId, Strategy>> = { 'fewest-stock': fewestStock };
+
+/** Builds a Cutting Plan with the Strategy named in the job settings. */
+export function planCuts(input: CutOptimizerInput): CuttingPlan {
+  return STRATEGIES[input.settings.strategy](input);
 }
