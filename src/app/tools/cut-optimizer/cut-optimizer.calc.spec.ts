@@ -1,4 +1,10 @@
-import { planCuts, type CutOptimizerInput, type CuttingPlan } from './cut-optimizer.calc';
+import {
+  groupLayouts,
+  planCuts,
+  type CutOptimizerInput,
+  type CuttingPlan,
+  type StockLayout,
+} from './cut-optimizer.calc';
 
 const SETTINGS = { kerfMillimetres: 3, trimMillimetres: 0, minimumOffcutLengthMillimetres: 300 };
 
@@ -336,6 +342,8 @@ describe('planCuts', () => {
     it('returns an empty plan for an empty Cut List', () => {
       expect(plan({ stock: [{ lengthMillimetres: 1000 }], cutList: [] })).toEqual({
         layouts: [],
+        groups: [],
+        totals: { stockUsed: [], wasteMillimetres: 0, offcutLengthsMillimetres: [] },
         unplacedParts: [],
       });
     });
@@ -354,6 +362,170 @@ describe('planCuts', () => {
 
       expect(partLengths(planCuts(input))).toEqual(expected);
       expect(partLengths(planCuts(input))).toEqual(expected);
+    });
+  });
+
+  describe('groups', () => {
+    const job = {
+      settings: { kerfMillimetres: 3, trimMillimetres: 10, minimumOffcutLengthMillimetres: 300 },
+      stock: [{ lengthMillimetres: 2400 }],
+      cutList: [
+        { name: 'leg', lengthMillimetres: 1000, quantity: 6 },
+        { name: 'rail', lengthMillimetres: 300, quantity: 3 },
+      ],
+    };
+
+    it('groups three identical Stock cut as leg, leg, rail into one group with a count of 3', () => {
+      const { groups } = planCuts(job);
+
+      expect(groups).toHaveLength(1);
+      expect(groups[0]?.count).toBe(3);
+      expect(groups[0]?.layout.stockLengthMillimetres).toBe(2400);
+      expect(groups[0]?.layout.parts.map((part) => part.name)).toEqual(['leg', 'leg', 'rail']);
+    });
+
+    it('gives an empty group list when nothing is placed', () => {
+      expect(plan({ stock: [], cutList: [{ lengthMillimetres: 10, quantity: 1 }] }).groups).toEqual(
+        [],
+      );
+    });
+
+    function layoutOf(
+      stockLengthMillimetres: number,
+      parts: [string | undefined, number][],
+    ): StockLayout {
+      return {
+        stockLengthMillimetres,
+        parts: parts.map(([name, lengthMillimetres], index) => ({
+          ...(name === undefined ? {} : { name }),
+          lengthMillimetres,
+          startMillimetres: index * 100,
+        })),
+        cuts: 0,
+        leftover: { kind: 'none', lengthMillimetres: 0 },
+      };
+    }
+
+    it('does not group layouts that differ only in Part order', () => {
+      const groups = groupLayouts([
+        layoutOf(1000, [
+          ['a', 500],
+          ['b', 500],
+        ]),
+        layoutOf(1000, [
+          ['b', 500],
+          ['a', 500],
+        ]),
+      ]);
+
+      expect(groups.map((group) => group.count)).toEqual([1, 1]);
+    });
+
+    it('does not group layouts that differ only in a Part name', () => {
+      const groups = groupLayouts([layoutOf(1000, [['a', 500]]), layoutOf(1000, [['b', 500]])]);
+
+      expect(groups.map((group) => group.count)).toEqual([1, 1]);
+    });
+
+    it('does not group a named Part with an unnamed one', () => {
+      const groups = groupLayouts([
+        layoutOf(1000, [['a', 500]]),
+        layoutOf(1000, [[undefined, 500]]),
+      ]);
+
+      expect(groups).toHaveLength(2);
+    });
+
+    it('does not group layouts that differ only in Stock length', () => {
+      const groups = groupLayouts([layoutOf(1000, [['a', 500]]), layoutOf(1200, [['a', 500]])]);
+
+      expect(groups.map((group) => group.count)).toEqual([1, 1]);
+    });
+
+    it('does not group layouts that differ only in a Part length', () => {
+      const groups = groupLayouts([layoutOf(1000, [['a', 500]]), layoutOf(1000, [['a', 400]])]);
+
+      expect(groups).toHaveLength(2);
+    });
+
+    it('keeps groups in order of first appearance and counts non-adjacent repeats', () => {
+      const groups = groupLayouts([
+        layoutOf(1000, [['a', 500]]),
+        layoutOf(1000, [['b', 500]]),
+        layoutOf(1000, [['a', 500]]),
+      ]);
+
+      expect(groups.map((group) => [group.layout.parts[0]?.name, group.count])).toEqual([
+        ['a', 2],
+        ['b', 1],
+      ]);
+    });
+  });
+
+  describe('totals', () => {
+    it('totals three identical Stock: 3 Stock and 300 mm of Waste (Trim, Kerf and leftover)', () => {
+      // Each 2400 mm Stock: Trim 2 x 10, leg 1000, leg 1000, rail 300, 3 Cuts of 3 mm, and a
+      // 71 mm leftover (74 mm minus the last Kerf) shorter than 300 mm: 20 + 9 + 71 = 100 mm.
+      const { totals } = planCuts({
+        settings: { kerfMillimetres: 3, trimMillimetres: 10, minimumOffcutLengthMillimetres: 300 },
+        stock: [{ lengthMillimetres: 2400 }],
+        cutList: [
+          { name: 'leg', lengthMillimetres: 1000, quantity: 6 },
+          { name: 'rail', lengthMillimetres: 300, quantity: 3 },
+        ],
+      });
+
+      expect(totals).toEqual({
+        stockUsed: [{ stockLengthMillimetres: 2400, count: 3 }],
+        wasteMillimetres: 300,
+        offcutLengthsMillimetres: [],
+      });
+    });
+
+    it('counts Stock per length, shortest first, and adds up the Waste of each', () => {
+      // 2300 mm Part on a 2400 mm Stock and 900 mm Part on a 1000 mm Stock: 100 mm of Waste each.
+      const { totals } = planCuts({
+        settings: { kerfMillimetres: 3, trimMillimetres: 10, minimumOffcutLengthMillimetres: 300 },
+        stock: [{ lengthMillimetres: 2400 }, { lengthMillimetres: 1000 }],
+        cutList: [
+          { lengthMillimetres: 2300, quantity: 1 },
+          { lengthMillimetres: 900, quantity: 1 },
+        ],
+      });
+
+      expect(totals.stockUsed).toEqual([
+        { stockLengthMillimetres: 1000, count: 1 },
+        { stockLengthMillimetres: 2400, count: 1 },
+      ]);
+      expect(totals.wasteMillimetres).toBe(200);
+    });
+
+    it('lists the Offcut and leaves only the Trim and the Kerf as Waste', () => {
+      // 2400 - 1500 Part - 877 Offcut = 23 mm: Trim 2 x 10 plus the Kerf of the one Cut.
+      const { totals } = plan({
+        settings: { kerfMillimetres: 3, trimMillimetres: 10, minimumOffcutLengthMillimetres: 300 },
+        stock: [{ lengthMillimetres: 2400 }],
+        cutList: [{ lengthMillimetres: 1500, quantity: 1 }],
+      });
+
+      expect(totals.offcutLengthsMillimetres).toEqual([877]);
+      expect(totals.wasteMillimetres).toBe(23);
+    });
+
+    it('lists the Offcuts in layout order and counts an exact fit as no Waste', () => {
+      // 1500 mm on 2000 mm: 497 mm Offcut, 3 mm Kerf. 1000 mm on 1000 mm: exact fit.
+      // 600 mm on 1000 mm: 397 mm Offcut, 3 mm Kerf. Waste: 3 + 0 + 3.
+      const { totals } = plan({
+        stock: [{ lengthMillimetres: 1000 }, { lengthMillimetres: 2000 }],
+        cutList: [
+          { lengthMillimetres: 600, quantity: 1 },
+          { lengthMillimetres: 1500, quantity: 1 },
+          { lengthMillimetres: 1000, quantity: 1 },
+        ],
+      });
+
+      expect(totals.offcutLengthsMillimetres).toEqual([497, 397]);
+      expect(totals.wasteMillimetres).toBe(6);
     });
   });
 });
