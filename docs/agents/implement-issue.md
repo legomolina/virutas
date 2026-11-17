@@ -3,7 +3,7 @@
 The steps for taking one issue to a PR. Two entry points follow them:
 
 - **`@claude` on GitHub**: `.github/workflows/claude.yml` points here. It runs on a runner with no browser.
-- **`/implement <n>` locally**: `.claude/skills/implement/`, inside a worktree made by `/create-worktree <n>`. It owns port 4200 + n.
+- **`/implement <n>` locally**: `.claude/skills/implement/`, in a worktree of its own (it creates one with the `/create-worktree` steps when run from the main checkout). It owns port 4200 + n.
 
 Where the two differ, the step says so. Anything the request adds or changes wins over these steps.
 

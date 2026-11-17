@@ -7,6 +7,8 @@ set -uo pipefail
 
 input=$(cat)
 file=$(jq -r '.tool_input.file_path // .tool_response.filePath // empty' <<<"$input")
+# Check the file in the working tree it belongs to.
+TREE_HINT=$(dirname "${file:-.}")
 
 # shellcheck source=_env.sh
 . "$(dirname "$0")/_env.sh"

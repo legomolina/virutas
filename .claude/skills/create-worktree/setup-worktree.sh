@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Creates a sibling worktree for one issue (used by /create-worktree):
+# Creates a sibling worktree for one issue (used by /create-worktree, and by
+# /implement run from the main checkout):
 #   ../woodworking-tools-<issue> on a new <branch> from an up-to-date origin/main,
 #   dependencies installed and the local Claude settings copied.
 # Usage: setup-worktree.sh <issue-number> <branch>

@@ -14,6 +14,8 @@ MAX_BLOCKS=3
 
 input=$(cat)
 session_id=$(jq -r '.session_id // "unknown"' <<<"$input")
+# Check the working tree the session is in now (it may have moved into a worktree).
+TREE_HINT=$(jq -r '.cwd // empty' <<<"$input")
 
 # shellcheck source=_env.sh
 . "$(dirname "$0")/_env.sh"
