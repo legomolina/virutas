@@ -88,6 +88,8 @@ test.describe('on a narrow screen', () => {
     await page.keyboard.press('Tab');
     await expect(page.getByRole('link', { name: 'Bevel Fence Calculator' })).toBeFocused();
     await page.keyboard.press('Tab');
+    await expect(page.getByRole('link', { name: 'Cut Optimizer' })).toBeFocused();
+    await page.keyboard.press('Tab');
     await expect(page.getByRole('link', { name: 'Settings' })).toBeFocused();
 
     await page.keyboard.press('Tab');

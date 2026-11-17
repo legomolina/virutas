@@ -30,4 +30,10 @@ export const TOOLS: readonly ToolEntry[] = [
     loadRoutes: async () =>
       import('../../tools/bevel-fence-calculator/bevel-fence-calculator.routes'),
   },
+  {
+    path: 'cut-optimizer',
+    nameKey: 'tools.cutOptimizer.name',
+    descriptionKey: 'tools.cutOptimizer.description',
+    loadRoutes: async () => import('../../tools/cut-optimizer/cut-optimizer.routes'),
+  },
 ];
