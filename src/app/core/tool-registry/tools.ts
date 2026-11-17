@@ -35,5 +35,7 @@ export const TOOLS: readonly ToolEntry[] = [
     nameKey: 'tools.cutOptimizer.name',
     descriptionKey: 'tools.cutOptimizer.description',
     loadRoutes: async () => import('../../tools/cut-optimizer/cut-optimizer.routes'),
+    loadSettingsSection: async () =>
+      (await import('../../tools/cut-optimizer/cut-optimizer-settings')).CutOptimizerSettings,
   },
 ];

@@ -56,3 +56,31 @@ test.describe('on a narrow screen', () => {
     await expect(page).toHaveURL('/cut-optimizer');
   });
 });
+
+test.describe('the settings', () => {
+  test('have a Cut Optimizer section whose defaults follow the Unit System', async ({ page }) => {
+    await page.goto('/settings');
+    const section = page.getByRole('region', { name: 'Cut Optimizer' });
+
+    await expect(section.getByLabel('Kerf')).toHaveAccessibleDescription(/1\/8"/);
+
+    await page.getByRole('radio', { name: 'Metric' }).check();
+
+    await expect(section.getByLabel('Kerf')).toHaveAccessibleDescription(/3 mm/);
+    await expect(section.getByLabel('Minimum Offcut Length')).toHaveAccessibleDescription(/300 mm/);
+  });
+
+  test('show a message on a field with a value that is not a length', async ({ page }) => {
+    await page.goto('/settings');
+    const trim = page.getByRole('region', { name: 'Cut Optimizer' }).getByLabel('Trim');
+
+    await trim.fill('abc');
+
+    await expect(page.getByRole('alert')).toContainText("That isn't a length");
+    await expect(trim).toHaveAttribute('aria-invalid', 'true');
+
+    await trim.fill('1/4');
+
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  });
+});
