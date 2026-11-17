@@ -1,1 +1,13 @@
-{ "intro": "Plan how to cut your Parts out of your Stock with the least Waste." }
+{
+  "intro": "Plan how to cut your Parts out of your Stock with the least Waste.",
+  "settings": {
+    "kerf": "Kerf",
+    "trim": "Trim",
+    "minimumOffcutLength": "Minimum Offcut length",
+    "defaultHint": "Leave empty to use the default, {{ value }}.",
+    "error": {
+      "unreadable": "That isn't a length. Try 3 mm, 1/8\" or 2 1/2\".",
+      "negative": "A length cannot be negative."
+    }
+  }
+}

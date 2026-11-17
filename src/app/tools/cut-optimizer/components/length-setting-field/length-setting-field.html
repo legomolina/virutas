@@ -1,0 +1,15 @@
+<wt-text-field
+  measurement
+  [name]="name()"
+  [label]="label()"
+  [hint]="'cutOptimizer.settings.defaultHint' | transloco: { value: defaultText() }"
+  [error]="
+    problem() === 'unreadable'
+      ? ('cutOptimizer.settings.error.unreadable' | transloco)
+      : problem() === 'negative'
+        ? ('cutOptimizer.settings.error.negative' | transloco)
+        : undefined
+  "
+  [value]="text()"
+  (valueChange)="edit($event)"
+/>

@@ -111,6 +111,123 @@ describe('SettingsStore', () => {
     });
   });
 
+  describe('Cut Optimizer defaults', () => {
+    it('follow the Metric Unit System until the user sets a value', () => {
+      const store = setUp(['en-GB']);
+
+      expect(store.cutOptimizerDefaults()).toEqual({
+        kerfMillimetres: 3,
+        trimMillimetres: 0,
+        minimumOffcutLengthMillimetres: 300,
+      });
+    });
+
+    it('follow the Imperial Unit System until the user sets a value', () => {
+      const store = setUp(['en-GB']);
+
+      store.setUnitSystem('imperial');
+
+      expect(store.cutOptimizerDefaults()).toEqual({
+        kerfMillimetres: 3.175,
+        trimMillimetres: 0,
+        minimumOffcutLengthMillimetres: 304.8,
+      });
+    });
+
+    it('report which values the user has set', () => {
+      const store = setUp(['en-GB']);
+      expect(store.cutOptimizerSetByUser()).toEqual({
+        kerf: false,
+        trim: false,
+        minimumOffcutLength: false,
+      });
+
+      store.setCutOptimizerKerf(2);
+      store.setCutOptimizerMinimumOffcutLength(500);
+
+      expect(store.cutOptimizerSetByUser()).toEqual({
+        kerf: true,
+        trim: false,
+        minimumOffcutLength: true,
+      });
+    });
+
+    it('keep a value the user set when the Unit System changes, and the rest follow it', () => {
+      const store = setUp(['en-GB']);
+      store.setCutOptimizerKerf(2);
+      store.setCutOptimizerTrim(10);
+      store.setCutOptimizerMinimumOffcutLength(500);
+
+      store.setUnitSystem('imperial');
+
+      expect(store.cutOptimizerDefaults()).toEqual({
+        kerfMillimetres: 2,
+        trimMillimetres: 10,
+        minimumOffcutLengthMillimetres: 500,
+      });
+    });
+
+    it('accept zero', () => {
+      const store = setUp(['en-GB']);
+
+      store.setCutOptimizerKerf(0);
+
+      expect(store.cutOptimizerDefaults().kerfMillimetres).toBe(0);
+      expect(store.cutOptimizerSetByUser().kerf).toBe(true);
+    });
+
+    it.each([
+      [
+        'kerf',
+        { kerfMillimetres: 3.175, trimMillimetres: 10, minimumOffcutLengthMillimetres: 500 },
+      ],
+      ['trim', { kerfMillimetres: 2, trimMillimetres: 0, minimumOffcutLengthMillimetres: 500 }],
+      [
+        'minimumOffcutLength',
+        { kerfMillimetres: 2, trimMillimetres: 10, minimumOffcutLengthMillimetres: 304.8 },
+      ],
+    ] as const)(
+      'go back to following the Unit System when the %s is reset',
+      (setting, expected) => {
+        const store = setUp(['en-GB']);
+        store.setCutOptimizerKerf(2);
+        store.setCutOptimizerTrim(10);
+        store.setCutOptimizerMinimumOffcutLength(500);
+        store.setUnitSystem('imperial');
+
+        store.resetCutOptimizerDefault(setting);
+
+        expect(store.cutOptimizerDefaults()).toEqual(expected);
+        expect(store.cutOptimizerSetByUser()[setting]).toBe(false);
+      },
+    );
+
+    it.each([-1, Number.NaN, Number.POSITIVE_INFINITY])(
+      'reject %s and keep the current value',
+      (millimetres) => {
+        const store = setUp(['en-GB']);
+        store.setCutOptimizerKerf(2);
+        store.setCutOptimizerTrim(10);
+        store.setCutOptimizerMinimumOffcutLength(500);
+
+        expect(() => {
+          store.setCutOptimizerKerf(millimetres);
+        }).toThrow(RangeError);
+        expect(() => {
+          store.setCutOptimizerTrim(millimetres);
+        }).toThrow(RangeError);
+        expect(() => {
+          store.setCutOptimizerMinimumOffcutLength(millimetres);
+        }).toThrow(RangeError);
+        expect(store.cutOptimizerDefaults()).toEqual({
+          kerfMillimetres: 2,
+          trimMillimetres: 10,
+          minimumOffcutLengthMillimetres: 500,
+        });
+      },
+    );
+  });
+
   it('writes nothing to browser storage', () => {
     localStorage.clear();
     sessionStorage.clear();
