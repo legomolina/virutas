@@ -1,11 +1,13 @@
 ---
 name: create-worktree
-description: Set up a sibling worktree for one GitHub issue without implementing it yet (/implement does both in one go).
+description: Set up a sibling worktree for one GitHub issue without implementing it yet (/implement sets one up and implements in the same session).
 disable-model-invocation: true
 argument-hint: <issue-number>
 ---
 
 Issue: `$ARGUMENTS`. Without a number, ask for one. Run this in the main checkout: when `git rev-parse --git-dir` differs from `git rev-parse --git-common-dir`, this session is already in a worktree, so say so and stop.
+
+`/implement <n>` run from the main checkout reuses steps 1–4 by number, so keep them self-contained and update it if they are renumbered.
 
 1. `gh issue view <n> --json title,state,labels`, then state the title and set the session title to `Setup #<n>` (see **Session title** below). Stop and say why when the issue is closed, or when `gh api repos/{owner}/{repo}/issues/<n> --jq .issue_dependencies_summary.blocked_by` is above 0 (an open issue blocks it).
 2. Choose the branch: `feat/`, `fix/` or `chore/`, plus a short kebab-case name taken from the issue.
@@ -19,7 +21,5 @@ Issue: `$ARGUMENTS`. Without a number, ask for one. Run this in the main checkou
 ## Session title
 
 When this session runs in an IDE that offers a session-title tool (the JetBrains Air plugin's `air_set_session_title`, a deferred tool), call it so parallel sessions can be told apart. It errors outside an Air session; then carry on without a title.
-
-`/implement <n>` follows steps 1–4 when run from the main checkout, so keep them usable on their own.
 
 Done when the worktree exists with dependencies installed, and the user has the folder and the command.

@@ -7,10 +7,10 @@ argument-hint: <issue-number>
 
 Issue: `$ARGUMENTS`. Without a number, ask for one.
 
-The work happens in a linked worktree: `git rev-parse --git-dir` differs from `git rev-parse --git-common-dir`.
+The work happens in the issue's linked worktree, `<main checkout>-<n>`. A session is in a linked worktree when `git rev-parse --git-dir` differs from `git rev-parse --git-common-dir`.
 
-- **Already in one** (made earlier by `/create-worktree <n>`): carry on below.
-- **In the main checkout**: follow steps 1–4 of `.claude/skills/create-worktree/SKILL.md` (check and claim the issue, choose the branch, run `setup-worktree.sh`), stopping wherever they say to stop. Then switch this session into the worktree path the script printed with the `EnterWorktree` tool (a deferred tool) and its `path` parameter. Confirm with `git rev-parse --show-toplevel` that the session is now there. When `EnterWorktree` is not available or fails, stop and tell the user to open a session in that path and run `/implement <n>`.
+- **In the main checkout**: set up the worktree with steps 1–4 of `.claude/skills/create-worktree/SKILL.md`, with two changes: skip its `Setup #<n>` title (this skill sets its own below) and skip its step 5. Every stop in steps 1–4 is a stop here too. Then load the deferred `EnterWorktree` tool (ToolSearch `select:EnterWorktree`) and call it with `path` set to the `worktree=` line the script printed. Check that `git rev-parse --show-toplevel` now prints that same path. When the tool is unavailable or the check fails, stop and give the user what step 5 of `/create-worktree` gives: the folder, `/implement <n>` and the model advice.
+- **In a linked worktree**: its folder must end in `-<n>`. Otherwise stop: it belongs to another issue.
 
 Other sessions run in parallel worktrees, so this one owns the port **4200 + issue number**. Use it everywhere:
 
