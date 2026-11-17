@@ -18,6 +18,14 @@ function plan(
   return planCuts({ settings: SETTINGS, ...overrides });
 }
 
+/** Each layout as `<Stock length>: <Part lengths>`. */
+function describeLayouts(result: CuttingPlan): string[] {
+  return result.layouts.map(
+    (layout) =>
+      `${layout.stockLengthMillimetres}: ${layout.parts.map((part) => part.lengthMillimetres).join(' + ')}`,
+  );
+}
+
 function partLengths(result: CuttingPlan): number[][] {
   return result.layouts.map((layout) => layout.parts.map((part) => part.lengthMillimetres));
 }
@@ -403,13 +411,77 @@ describe('planCuts', () => {
   });
 
   describe('mixing limited and unlimited Stock', () => {
+    it('uses a longer Stock on hand rather than buying a shorter one', () => {
+      const result = plan({
+        stock: [{ lengthMillimetres: 2400, quantity: 1 }, { lengthMillimetres: 1200 }],
+        cutList: [{ lengthMillimetres: 1000, quantity: 1 }],
+      });
+
+      expect(describeLayouts(result)).toEqual(['2400: 1000']);
+    });
+
+    it('uses two Stock on hand rather than buying one', () => {
+      // One bought 2400 mm Stock holds both Parts, but the two 1000 mm on hand hold one each.
+      const result = plan({
+        stock: [{ lengthMillimetres: 1000, quantity: 2 }, { lengthMillimetres: 2400 }],
+        cutList: [{ lengthMillimetres: 900, quantity: 2 }],
+      });
+
+      expect(describeLayouts(result)).toEqual(['1000: 900', '1000: 900']);
+    });
+
+    it('buys the least Stock length when it must buy the same number of Stock', () => {
+      // Buying one 2400 mm for both Parts, or cutting 900 from the 1000 on hand and buying a 1200.
+      const result = planCuts({
+        settings: { ...SETTINGS, kerfMillimetres: 0 },
+        stock: [
+          { lengthMillimetres: 1000, quantity: 1 },
+          { lengthMillimetres: 1200 },
+          { lengthMillimetres: 2400 },
+        ],
+        cutList: [
+          { lengthMillimetres: 1100, quantity: 1 },
+          { lengthMillimetres: 900, quantity: 1 },
+        ],
+      });
+
+      expect(describeLayouts(result)).toEqual(['1000: 900', '1200: 1100']);
+    });
+
+    it('uses fewer Stock rather than Stock on hand when it buys the same either way', () => {
+      // A 2500 mm Stock is bought in both plans: alone for 800 + 800 + 500, or for 500 with the two
+      // 800s on the 1000s on hand. Fewer Stock in total decides.
+      const result = planCuts({
+        settings: { ...SETTINGS, kerfMillimetres: 0 },
+        stock: [{ lengthMillimetres: 2500 }, { lengthMillimetres: 1000, quantity: 2 }],
+        cutList: [
+          { lengthMillimetres: 500, quantity: 1 },
+          { lengthMillimetres: 800, quantity: 2 },
+        ],
+      });
+
+      expect(describeLayouts(result)).toEqual(['2500: 800 + 800 + 500']);
+    });
+
+    it('between Stock on hand that both fit, uses the shorter and keeps the longer whole', () => {
+      const result = plan({
+        stock: [
+          { lengthMillimetres: 2400, quantity: 1 },
+          { lengthMillimetres: 1200, quantity: 1 },
+        ],
+        cutList: [{ lengthMillimetres: 1000, quantity: 1 }],
+      });
+
+      expect(describeLayouts(result)).toEqual(['1200: 1000']);
+    });
+
     it('falls back to an unlimited entry once the limited Stock runs out', () => {
       const result = plan({
         stock: [{ lengthMillimetres: 1000, quantity: 1 }, { lengthMillimetres: 2000 }],
         cutList: [{ lengthMillimetres: 900, quantity: 3 }],
       });
 
-      expect(result.layouts.map((layout) => layout.stockLengthMillimetres)).toEqual([2000, 1000]);
+      expect(result.layouts.map((layout) => layout.stockLengthMillimetres)).toEqual([1000, 2000]);
       expect(result.unplacedParts).toEqual([]);
     });
 
@@ -444,14 +516,6 @@ describe('planCuts', () => {
       kerfMillimetres: 0,
       minimumOffcutLengthMillimetres: 200,
     };
-
-    /** Each layout as `<Stock length>: <Part lengths>`. */
-    function describeLayouts(result: CuttingPlan): string[] {
-      return result.layouts.map(
-        (layout) =>
-          `${layout.stockLengthMillimetres}: ${layout.parts.map((part) => part.lengthMillimetres).join(' + ')}`,
-      );
-    }
 
     it('uses as few Stock as the Parts need, even when first-fit decreasing opens one more', () => {
       // 4400 mm of Parts need two Stock; the only way is 1400 + 300 + 300 = 2000 and 1200 + 1200 on
@@ -517,8 +581,8 @@ describe('planCuts', () => {
       expect(result.layouts.map((layout) => layout.stockLengthMillimetres)).toEqual([2000]);
     });
 
-    it('between equally few Stock, uses the short unlimited Stock rather than a second long one', () => {
-      // 3400 mm of Parts need two Stock: 3000 + 3000 or, better, 3000 (1400 + 1400) + 1000 (600).
+    it('uses a second Stock on hand rather than buying a shorter one', () => {
+      // 3400 mm of Parts need two Stock: the two 3000 mm on hand, or one of them and a bought 1000.
       const result = planCuts({
         settings: noKerf,
         stock: [{ lengthMillimetres: 1000 }, { lengthMillimetres: 3000, quantity: 2 }],
@@ -528,7 +592,7 @@ describe('planCuts', () => {
         ],
       });
 
-      expect(describeLayouts(result)).toEqual(['3000: 1400 + 1400', '1000: 600']);
+      expect(describeLayouts(result)).toEqual(['3000: 1400 + 1400', '3000: 600']);
     });
 
     it('between equally few Stock of the same total length, prefers a longer Offcut', () => {
@@ -563,6 +627,22 @@ describe('planCuts', () => {
       });
 
       expect(describeLayouts(result)).toEqual(['3000: 1400 + 1400', '3000: 1100']);
+    });
+
+    it('keeps moving Parts until no move lengthens the Offcuts', () => {
+      // Two 1800 mm Stock at best (2400 mm of Parts). 900 + 900 fills one exactly, so 400 + 200 on
+      // the other leaves the longest possible Offcut: 1200 mm.
+      const result = planCuts({
+        settings: noKerf,
+        stock: [{ lengthMillimetres: 2000 }, { lengthMillimetres: 1800 }],
+        cutList: [
+          { lengthMillimetres: 400, quantity: 1 },
+          { lengthMillimetres: 900, quantity: 2 },
+          { lengthMillimetres: 200, quantity: 1 },
+        ],
+      });
+
+      expect(describeLayouts(result)).toEqual(['1800: 900 + 900', '1800: 400 + 200']);
     });
 
     it('compares the next-longest Offcuts when the longest are equal', () => {

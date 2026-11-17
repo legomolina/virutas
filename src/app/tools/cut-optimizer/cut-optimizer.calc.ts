@@ -170,9 +170,9 @@ function toLayout(bin: Bin, entry: Entry, settings: JobSettings): StockLayout {
 }
 
 /**
- * Gives each Bin the shortest Stock entry still available that holds it, limited entries before
- * unlimited ones of the same length; `undefined` when the Stock runs out. Because every entry that
- * holds a Bin also holds the shorter ones, the order the Bins are taken in does not matter.
+ * Gives each Bin, longest first, the shortest Stock on hand that still holds it, else the shortest
+ * Stock to buy; `undefined` when the Stock runs out. Longest first, so the Stock on hand goes to the
+ * Bins that would cost the most to buy for.
  */
 function assignStock(
   bins: readonly Bin[],
@@ -180,9 +180,11 @@ function assignStock(
   kerfMillimetres: number,
 ): Candidate | undefined {
   const remaining = entries.map((entry) => entry.quantity);
+  const order = bins
+    .map((bin, position) => ({ position, length: needed(bin, kerfMillimetres) }))
+    .sort((a, b) => b.length - a.length);
   const stock: Entry[] = [];
-  for (const bin of bins) {
-    const length = needed(bin, kerfMillimetres);
+  for (const { position, length } of order) {
     const choice = entries.findIndex(
       (entry, index) => remaining[index] > 0 && holds(entry.usableMillimetres, length),
     );
@@ -190,35 +192,42 @@ function assignStock(
       return undefined;
     }
     remaining[choice] -= 1;
-    stock.push(entries[choice]);
+    stock[position] = entries[choice];
   }
   return { bins, stock };
 }
 
+function totalLength(stock: readonly Entry[]): number {
+  return stock.reduce((total, entry) => total + entry.lengthMillimetres, 0);
+}
+
 /**
- * Fewest Stock first, then the least total Stock length, then the longest Offcuts (compared
- * longest to longest, then second to second, …). Negative when `a` is better.
+ * What the fewest Stock Strategy minimizes, most important first: Stock to buy, length to buy,
+ * Stock used, length used, then the Offcuts from longest to shortest, negated so that longer is
+ * smaller.
  */
+function cost(candidate: Candidate, settings: JobSettings): number[] {
+  const bought = candidate.stock.filter(isUnlimited);
+  const offcuts = candidate.bins
+    .map((bin, position) => leftoverOf(bin, candidate.stock[position], settings))
+    .filter((end) => end.kind === 'offcut')
+    .map((end) => end.lengthMillimetres)
+    .sort((x, y) => y - x);
+  return [
+    bought.length,
+    totalLength(bought),
+    candidate.stock.length,
+    totalLength(candidate.stock),
+    ...offcuts.map((length) => -length),
+  ];
+}
+
+/** Compares costs position by position, a missing Offcut counting as 0. Negative when `a` is better. */
 function compare(a: Candidate, b: Candidate, settings: JobSettings): number {
-  if (a.bins.length !== b.bins.length) {
-    return a.bins.length - b.bins.length;
-  }
-  const totalLength = (candidate: Candidate): number =>
-    candidate.stock.reduce((total, entry) => total + entry.lengthMillimetres, 0);
-  const lengthDifference = totalLength(a) - totalLength(b);
-  if (Math.abs(lengthDifference) > EPSILON_MILLIMETRES) {
-    return lengthDifference;
-  }
-  const offcuts = (candidate: Candidate): number[] =>
-    candidate.bins
-      .map((bin, position) => leftoverOf(bin, candidate.stock[position], settings))
-      .filter((end) => end.kind === 'offcut')
-      .map((end) => end.lengthMillimetres)
-      .sort((x, y) => y - x);
-  const offcutsA = offcuts(a);
-  const offcutsB = offcuts(b);
-  for (let position = 0; position < Math.max(offcutsA.length, offcutsB.length); position++) {
-    const difference = (offcutsB[position] ?? 0) - (offcutsA[position] ?? 0);
+  const costA = cost(a, settings);
+  const costB = cost(b, settings);
+  for (let position = 0; position < Math.max(costA.length, costB.length); position++) {
+    const difference = (costA[position] ?? 0) - (costB[position] ?? 0);
     if (Math.abs(difference) > EPSILON_MILLIMETRES) {
       return difference;
     }
@@ -226,9 +235,12 @@ function compare(a: Candidate, b: Candidate, settings: JobSettings): number {
   return 0;
 }
 
-/** Moves one Part to Bin `to`, dropping the Bin it leaves when that Bin is left empty. */
+/**
+ * Moves one Part to Bin `to`, or onto a new Stock when `to` is past the last Bin, dropping the Bin it
+ * leaves when that Bin is left empty.
+ */
 function move(bins: readonly Bin[], part: Part, to: number): Bin[] {
-  return bins.flatMap((bin, position) => {
+  return [...bins, []].flatMap((bin, position) => {
     const rest = bin.filter((other) => other !== part);
     const moved = position === to ? [...rest, part].sort((x, y) => x.rank - y.rank) : rest;
     return moved.length > 0 ? [moved] : [];
@@ -245,7 +257,7 @@ function improve(start: Candidate, entries: readonly Entry[], settings: JobSetti
   while (improved) {
     improved = false;
     for (const part of best.bins.flat()) {
-      for (let to = 0; to < best.bins.length; to++) {
+      for (let to = 0; to <= best.bins.length; to++) {
         const candidate = assignStock(move(best.bins, part, to), entries, settings.kerfMillimetres);
         if (candidate !== undefined && compare(candidate, best, settings) < 0) {
           best = candidate;
@@ -257,7 +269,7 @@ function improve(start: Candidate, entries: readonly Entry[], settings: JobSetti
   return best;
 }
 
-/** The Stock entries, shortest usable length first, limited before unlimited of the same length. */
+/** The Stock entries: on hand (limited) before to buy (unlimited), each shortest usable length first. */
 function toEntries(stock: readonly StockEntry[], settings: JobSettings): Entry[] {
   return stock
     .map((entry, index) => ({
@@ -268,8 +280,8 @@ function toEntries(stock: readonly StockEntry[], settings: JobSettings): Entry[]
     }))
     .sort(
       (a, b) =>
-        a.usableMillimetres - b.usableMillimetres ||
-        Number(isUnlimited(a)) - Number(isUnlimited(b)),
+        Number(isUnlimited(a)) - Number(isUnlimited(b)) ||
+        a.usableMillimetres - b.usableMillimetres,
     );
 }
 
@@ -294,8 +306,8 @@ interface FirstFit {
 }
 
 /**
- * Places each Part, longest first, on the first Stock it fits, else on a new Stock of the longest
- * entry still available that holds it, else reports it as an Unplaced Part.
+ * Places each Part, longest first, on the first Stock it fits, else on a new Stock: the longest on
+ * hand that holds it, else the longest to buy, else it is an Unplaced Part.
  */
 function firstFitDecreasing(
   parts: readonly Part[],
@@ -313,15 +325,13 @@ function firstFitDecreasing(
       target.parts.push(part);
       continue;
     }
-    // Entries are sorted shortest first, so the last match is the longest.
-    const choice = entries.reduce(
-      (found, entry, index) =>
-        remaining[index] > 0 && holds(entry.usableMillimetres, part.lengthMillimetres)
-          ? index
-          : found,
-      -1,
+    const fitting = entries.flatMap((entry, index) =>
+      remaining[index] > 0 && holds(entry.usableMillimetres, part.lengthMillimetres) ? [index] : [],
     );
-    if (choice < 0) {
+    const onHand = fitting.filter((index) => !isUnlimited(entries[index]));
+    // Each group is sorted shortest first, so its last entry is the longest.
+    const choice = (onHand.length > 0 ? onHand : fitting).at(-1);
+    if (choice === undefined) {
       const fitsAny = entries.some((entry) =>
         holds(entry.usableMillimetres, part.lengthMillimetres),
       );
@@ -335,9 +345,10 @@ function firstFitDecreasing(
 }
 
 /**
- * The fewest Stock Strategy: first-fit decreasing into the longest Stock still available, then
- * the shortest Stock that holds each layout, then single-Part moves that improve the plan.
- * Deterministic; not guaranteed optimal.
+ * The fewest Stock Strategy: Stock on hand before Stock to buy, then as few Stock and as little
+ * length as possible, then the longest Offcuts (see `cost`). First-fit decreasing into the longest
+ * Stock available, then the shortest Stock that holds each layout, then single-Part moves that
+ * lower the cost. Deterministic; not guaranteed optimal.
  */
 const fewestStock: Strategy = (input) => {
   const { settings } = input;
