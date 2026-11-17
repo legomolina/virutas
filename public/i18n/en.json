@@ -46,6 +46,10 @@
     "bevelFenceCalculator": {
       "name": "Bevel Fence Calculator",
       "description": "Find where to set the Fence so a Bevel Cut leaves a Part the wanted length on its Long Face or Short Face."
+    },
+    "cutOptimizer": {
+      "name": "Cut Optimizer",
+      "description": "Plan how to cut your Parts out of your Stock to leave the least Waste."
     }
   }
 }

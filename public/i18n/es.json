@@ -46,6 +46,10 @@
     "bevelFenceCalculator": {
       "name": "Calculadora de guía paralela para bisel",
       "description": "Averigua dónde colocar la guía paralela para que un corte a bisel deje la pieza con la longitud deseada en su cara larga o su cara corta."
+    },
+    "cutOptimizer": {
+      "name": "Optimizador de cortes",
+      "description": "Planifica cómo cortar tus piezas del material para dejar el mínimo desperdicio."
     }
   }
 }
