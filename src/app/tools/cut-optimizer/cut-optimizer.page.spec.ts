@@ -251,13 +251,17 @@ describe('CutOptimizerPage', () => {
       expect(field(entry, 'Quantity').getAttribute('aria-invalid')).toBeNull();
     });
 
-    it('shows no message while the length is empty', async () => {
+    it('shows no length message while the length is empty', async () => {
       const fixture = render();
       await fixture.whenStable();
+      const entry = stockEntry(fixture, 'Stock 1');
 
-      await type(fixture, field(stockEntry(fixture, 'Stock 1'), 'Quantity'), '2');
+      await type(fixture, field(entry, 'Quantity'), '0');
 
-      expect(alerts(fixture)).toEqual([]);
+      expect(alerts(fixture)).toEqual([
+        'The quantity must be a whole number greater than zero, or empty for as many as needed.',
+      ]);
+      expect(field(entry, 'Length').getAttribute('aria-invalid')).toBeNull();
     });
 
     it.each([
@@ -307,12 +311,12 @@ describe('CutOptimizerPage', () => {
       await type(fixture, field(stockEntry(fixture, 'Stock 1'), 'Length'), '2400');
       await type(fixture, field(stockEntry(fixture, 'Stock 2'), 'Length'), '0');
 
-      expect(
-        field(stockEntry(fixture, 'Stock 1'), 'Length').getAttribute('aria-invalid'),
-      ).toBeNull();
-      expect(field(stockEntry(fixture, 'Stock 2'), 'Length').getAttribute('aria-invalid')).toBe(
-        'true',
-      );
+      const first = field(stockEntry(fixture, 'Stock 1'), 'Length');
+      const second = field(stockEntry(fixture, 'Stock 2'), 'Length');
+      expect(first.getAttribute('aria-invalid')).toBeNull();
+      expect(description(fixture, first)).toEqual([]);
+      expect(second.getAttribute('aria-invalid')).toBe('true');
+      expect(description(fixture, second)).toEqual(['A length must be greater than zero.']);
     });
 
     it('reads a bare length in the preferred Unit System', async () => {
@@ -322,8 +326,13 @@ describe('CutOptimizerPage', () => {
       const entry = stockEntry(fixture, 'Stock 1');
 
       await type(fixture, field(entry, 'Length'), '94 1/2');
-
       expect(alerts(fixture)).toEqual([]);
+
+      TestBed.inject(SettingsStore).setUnitSystem('metric');
+      await fixture.whenStable();
+      expect(alerts(fixture)).toEqual([
+        'That length can\'t be read. Try something like 2400, 94 1/2" or 2400 mm.',
+      ]);
     });
 
     it('is in Spanish, with its messages', async () => {

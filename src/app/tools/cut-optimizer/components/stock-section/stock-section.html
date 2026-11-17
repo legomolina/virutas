@@ -4,9 +4,9 @@
     <p>{{ 'cutOptimizer.stock.description' | transloco }}</p>
   </hgroup>
 
-  @for (item of rows(); track item.row.id; let n = $index) {
-    @let row = item.row;
-    @let errors = item.errors;
+  @for (reading of readings(); track reading.entry.id; let n = $index) {
+    @let entry = reading.entry;
+    @let errors = reading.errors;
     @let lengthError =
       errors.length === 'unreadable'
         ? ('cutOptimizer.errors.lengthUnreadable' | transloco)
@@ -21,27 +21,26 @@
     <fieldset>
       <legend>{{ 'cutOptimizer.stock.entry' | transloco: { n: n + 1 } }}</legend>
       <wt-text-field
-        [name]="'stock-' + row.id + '-length'"
+        [name]="reading.lengthId"
         [label]="'cutOptimizer.stock.length.label' | transloco"
         [error]="lengthError"
         measurement
-        [value]="row.length"
-        (valueChange)="setLength(row.id, $event)"
+        [value]="entry.length"
+        (valueChange)="update(entry.id, { length: $event })"
       />
       <wt-text-field
-        [name]="'stock-' + row.id + '-quantity'"
+        [name]="reading.quantityId"
         [label]="'cutOptimizer.stock.quantity.label' | transloco"
         [hint]="'cutOptimizer.stock.quantity.hint' | transloco"
         [error]="quantityError"
-        measurement
-        [value]="row.quantity"
-        (valueChange)="setQuantity(row.id, $event)"
+        [value]="entry.quantity"
+        (valueChange)="update(entry.id, { quantity: $event })"
       />
       <button
         wt-button
         type="button"
         [attr.aria-label]="'cutOptimizer.stock.removeLabel' | transloco: { n: n + 1 }"
-        (click)="remove(row.id)"
+        (click)="remove(entry.id)"
       >
         {{ 'cutOptimizer.stock.remove' | transloco }}
       </button>

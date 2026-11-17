@@ -7,6 +7,16 @@ export interface StockEntryTexts {
   readonly quantity: string;
 }
 
+/** A Stock entry as typed on the page, with an id that stays the same while the entry exists. */
+export interface TypedStockEntry extends StockEntryTexts {
+  readonly id: number;
+}
+
+/** A new, empty Stock entry with an id after the highest in `entries`, so no id is reused. */
+export function emptyStockEntry(entries: readonly TypedStockEntry[]): TypedStockEntry {
+  return { id: Math.max(0, ...entries.map((entry) => entry.id)) + 1, length: '', quantity: '' };
+}
+
 export interface StockEntryErrors {
   readonly length?: 'unreadable' | 'not-positive';
   readonly quantity?: 'not-positive-integer';

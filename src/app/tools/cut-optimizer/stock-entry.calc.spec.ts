@@ -1,4 +1,4 @@
-import { readStockEntry } from './stock-entry.calc';
+import { emptyStockEntry, readStockEntry } from './stock-entry.calc';
 
 describe('readStockEntry', () => {
   it('reads a length with an empty quantity as unlimited Stock', () => {
@@ -19,6 +19,13 @@ describe('readStockEntry', () => {
     expect(readStockEntry({ length: '1800', quantity: ' 3 ' }, 'metric')).toStrictEqual({
       errors: {},
       entry: { lengthMillimetres: 1800, quantity: 3 },
+    });
+  });
+
+  it('reads a quantity of one', () => {
+    expect(readStockEntry({ length: '2400', quantity: '1' }, 'metric')).toStrictEqual({
+      errors: {},
+      entry: { lengthMillimetres: 2400, quantity: 1 },
     });
   });
 
@@ -65,5 +72,20 @@ describe('readStockEntry', () => {
 
   it('has no entry and no error while the length is empty', () => {
     expect(readStockEntry({ length: ' ', quantity: '2' }, 'metric')).toStrictEqual({ errors: {} });
+  });
+});
+
+describe('emptyStockEntry', () => {
+  it('is the first entry, with id 1, when there is none', () => {
+    expect(emptyStockEntry([])).toStrictEqual({ id: 1, length: '', quantity: '' });
+  });
+
+  it('takes an id after the highest in use, so no id is reused', () => {
+    const entries = [
+      { id: 4, length: '2400', quantity: '' },
+      { id: 2, length: '1800', quantity: '3' },
+    ];
+
+    expect(emptyStockEntry(entries)).toStrictEqual({ id: 5, length: '', quantity: '' });
   });
 });

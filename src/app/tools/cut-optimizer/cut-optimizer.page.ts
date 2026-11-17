@@ -1,8 +1,9 @@
 import { Component, inject, signal } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { SettingsStore } from '../../core/settings/settings-store';
-import type { StockRow } from './components/stock-section/stock-section';
-import { emptyStockRow, StockSection } from './components/stock-section/stock-section';
+import { StockSection } from './components/stock-section/stock-section';
+import type { TypedStockEntry } from './stock-entry.calc';
+import { emptyStockEntry } from './stock-entry.calc';
 
 /** The Cut Optimizer's page. */
 @Component({
@@ -15,5 +16,5 @@ export default class CutOptimizerPage {
   protected readonly settings = inject(SettingsStore);
 
   /** The Stock entries as typed; the page starts with one empty entry. */
-  protected readonly stock = signal<readonly StockRow[]>([emptyStockRow()]);
+  protected readonly stock = signal<readonly TypedStockEntry[]>([emptyStockEntry([])]);
 }

@@ -13,17 +13,12 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import type { UnitSystem } from '../../../../shared/measurement/unit-system';
 import { Button } from '../../../../shared/ui/button/button';
 import { TextField } from '../../../../shared/ui/text-field/text-field';
-import type { StockEntryTexts } from '../../stock-entry.calc';
-import { readStockEntry } from '../../stock-entry.calc';
+import type { StockEntryTexts, TypedStockEntry } from '../../stock-entry.calc';
+import { emptyStockEntry, readStockEntry } from '../../stock-entry.calc';
 
-/** A Stock entry as typed, with an id that stays the same while the entry exists. */
-export interface StockRow extends StockEntryTexts {
-  readonly id: number;
-}
-
-/** A new, empty Stock entry whose id is not used by any of `rows`. */
-export function emptyStockRow(rows: readonly StockRow[] = []): StockRow {
-  return { id: Math.max(0, ...rows.map((row) => row.id)) + 1, length: '', quantity: '' };
+/** The id of the length input of the Stock entry `id`, unique on the page. */
+function lengthFieldId(id: number): string {
+  return `stock-${id}-length`;
 }
 
 /**
@@ -45,32 +40,32 @@ export class StockSection {
     read: ElementRef<HTMLButtonElement>,
   });
 
-  readonly entries = model.required<readonly StockRow[]>();
+  readonly entries = model.required<readonly TypedStockEntry[]>();
 
   /** The preferred Unit System, which bare numbers are read in. */
   readonly unitSystem = input.required<UnitSystem>();
 
-  /** Each entry with what is wrong with its values. */
-  protected readonly rows = computed(() =>
-    this.entries().map((row) => ({
-      row,
-      errors: readStockEntry(row, this.unitSystem()).errors,
+  /** Each entry with the ids of its fields and what is wrong with its values. */
+  protected readonly readings = computed(() =>
+    this.entries().map((entry) => ({
+      entry,
+      lengthId: lengthFieldId(entry.id),
+      quantityId: `stock-${entry.id}-quantity`,
+      errors: readStockEntry(entry, this.unitSystem()).errors,
     })),
   );
 
-  protected setLength(id: number, length: string): void {
-    this.entries.update((rows) => rows.map((row) => (row.id === id ? { ...row, length } : row)));
-  }
-
-  protected setQuantity(id: number, quantity: string): void {
-    this.entries.update((rows) => rows.map((row) => (row.id === id ? { ...row, quantity } : row)));
+  protected update(id: number, change: Partial<StockEntryTexts>): void {
+    this.entries.update((entries) =>
+      entries.map((entry) => (entry.id === id ? { ...entry, ...change } : entry)),
+    );
   }
 
   /** Adds an empty entry at the end and moves focus to its length. */
   protected add(): void {
-    const added = emptyStockRow(this.entries());
-    this.entries.update((rows) => [...rows, added]);
-    this.focusAfterRender(`#stock-${added.id}-length`);
+    const added = emptyStockEntry(this.entries());
+    this.entries.update((entries) => [...entries, added]);
+    this.focusAfterRender(`#${lengthFieldId(added.id)}`);
   }
 
   /**
@@ -78,12 +73,12 @@ export class StockSection {
    * one before it when it was the last, or to "Add Stock" when none is left.
    */
   protected remove(id: number): void {
-    const rows = this.entries();
-    const index = rows.findIndex((row) => row.id === id);
-    const remaining = rows.filter((row) => row.id !== id);
+    const entries = this.entries();
+    const index = entries.findIndex((entry) => entry.id === id);
+    const remaining = entries.filter((entry) => entry.id !== id);
     const next = remaining.at(Math.min(index, remaining.length - 1));
     this.entries.set(remaining);
-    this.focusAfterRender(next === undefined ? this.addButton() : `#stock-${next.id}-length`);
+    this.focusAfterRender(next === undefined ? this.addButton() : `#${lengthFieldId(next.id)}`);
   }
 
   /** Focuses `target`, or the element inside this section it selects, once the view is updated. */
