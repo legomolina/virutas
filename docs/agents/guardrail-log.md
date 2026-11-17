@@ -6,6 +6,10 @@ Add an entry whenever you add, change or remove a guardrail, or when one catches
 
 Add new entries at the top, in the same shape: a date, then **What happened**, **Root cause** and **Guardrail**. Keep it a list, not a table: Prettier re-aligns a whole table whenever a row widens it, so parallel branches conflict on every line.
 
+- **2026-11-17**
+  - **What happened:** Every issue took two sessions: `/create-worktree <n>` in the main checkout, then a new session in the worktree to run `/implement <n>`.
+  - **Root cause:** A session could not move into another folder, so setup and implementation had to be split across sessions (see 2026-11-04).
+  - **Guardrail:** `/implement <n>` run from the main checkout follows the `/create-worktree` steps (kept in one place, in its skill) and switches the same session into the new worktree with the `EnterWorktree` tool, then implements as before. It still has one job, taking the issue to a green PR; it falls back to the two-session flow when `EnterWorktree` is unavailable. `/create-worktree` stays for preparing a worktree without implementing it.
 - **2026-11-10**
   - **What happened:** `mutation.yml` only runs on PRs that touch the domain logic, so nothing checked the score on `main` afterwards. A change that lowers it for another reason (a Stryker or Vitest upgrade) would go unnoticed.
   - **Root cause:** A path-filtered workflow never runs on `main`, and cannot be a required check.

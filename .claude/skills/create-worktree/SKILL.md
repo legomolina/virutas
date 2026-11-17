@@ -1,6 +1,6 @@
 ---
 name: create-worktree
-description: Set up a sibling worktree for one GitHub issue, ready for a parallel session to run /implement in it.
+description: Set up a sibling worktree for one GitHub issue without implementing it yet (/implement does both in one go).
 disable-model-invocation: true
 argument-hint: <issue-number>
 ---
@@ -19,5 +19,7 @@ Issue: `$ARGUMENTS`. Without a number, ask for one. Run this in the main checkou
 ## Session title
 
 When this session runs in an IDE that offers a session-title tool (the JetBrains Air plugin's `air_set_session_title`, a deferred tool), call it so parallel sessions can be told apart. It errors outside an Air session; then carry on without a title.
+
+`/implement <n>` follows steps 1–4 when run from the main checkout, so keep them usable on their own.
 
 Done when the worktree exists with dependencies installed, and the user has the folder and the command.
