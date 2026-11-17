@@ -197,6 +197,17 @@ describe('planCuts', () => {
       expect(result.layouts[0]?.parts.map((part) => part.startMillimetres)).toEqual([10, 413]);
     });
 
+    it('combines with Kerf: one 400 mm Part on 1000 mm Stock leaves a 577 mm Offcut after one Cut', () => {
+      const result = planCuts({
+        stock: [{ lengthMillimetres: 1000 }],
+        cutList: [{ lengthMillimetres: 400, quantity: 1 }],
+        settings,
+      });
+
+      expect(result.layouts[0]?.cuts).toBe(1);
+      expect(result.layouts[0]?.leftover).toEqual({ kind: 'offcut', lengthMillimetres: 577 });
+    });
+
     it('reports a Part longer than the usable length as too-long', () => {
       const result = planCuts({
         stock: [{ lengthMillimetres: 1000 }],
@@ -315,6 +326,13 @@ describe('planCuts', () => {
       expect(result.layouts.map((layout) => layout.stockLengthMillimetres)).toEqual([1000]);
     });
 
+    it('reports every Part as too-long when there is no Stock', () => {
+      const result = plan({ stock: [], cutList: [{ lengthMillimetres: 100, quantity: 2 }] });
+
+      expect(result.layouts).toEqual([]);
+      expect(result.unplacedParts).toHaveLength(2);
+    });
+
     it('returns an empty plan for an empty Cut List', () => {
       expect(plan({ stock: [{ lengthMillimetres: 1000 }], cutList: [] })).toEqual({
         layouts: [],
@@ -332,7 +350,10 @@ describe('planCuts', () => {
         ],
       };
 
-      expect(planCuts(input)).toEqual(planCuts(input));
+      const expected = [[450, 450], [300, 300, 300], [300]];
+
+      expect(partLengths(planCuts(input))).toEqual(expected);
+      expect(partLengths(planCuts(input))).toEqual(expected);
     });
   });
 });
