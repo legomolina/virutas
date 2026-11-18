@@ -735,12 +735,12 @@ describe('CutOptimizerPage', () => {
     it.each([
       ['metric', ['3 mm', '0 mm', '300 mm']],
       ['imperial', ['1/8"', '0"', '12"']],
-    ] as const)('starts from the %s defaults', async (unitSystem, shown) => {
+    ] as const)('starts from the %s defaults', async (unitSystem, defaults) => {
       const fixture = render();
       TestBed.inject(SettingsStore).setUnitSystem(unitSystem);
       await fixture.whenStable();
 
-      expect(shownJobSettings(fixture)).toEqual(shown);
+      expect(shownJobSettings(fixture)).toEqual(defaults);
     });
 
     it('starts from the defaults the woodworker set', async () => {
