@@ -21,6 +21,7 @@ Where the two differ, the step says so. Anything the request adds or changes win
    - **On GitHub**: do not open the PR yourself. Give the "Create PR" link, with a title in Conventional Commits form and a body that starts with `Closes #<n>`. The owner opens the PR, so the owner-only automatic review runs on it.
 6. **Locally**, watch CI with `gh pr checks <pr> --watch`.
    - A red job: read `gh run view --log-failed`, fix the cause and push again.
+   - The PR conflicts with `main` or is behind it: follow `/update-branch`.
    - A green e2e job can still hide retried failures. Search its log for `flaky`, and treat each one as a failure to fix. When it predates this branch, report it instead.
 7. Finish with a summary:
    - what changed;
