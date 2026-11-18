@@ -84,3 +84,32 @@ test.describe('the settings', () => {
     await expect(page.getByRole('alert')).toHaveCount(0);
   });
 });
+
+test.describe('the Cut List', () => {
+  test('takes Parts from the keyboard and shows a message on a field that cannot be used', async ({
+    page,
+  }) => {
+    await page.goto('/cut-optimizer');
+    const cutList = page.getByRole('region', { name: 'Cut List' });
+    const part1 = cutList.getByRole('group', { name: 'Part 1' });
+
+    await part1.getByLabel('Name (optional)').fill('leg');
+    await part1.getByLabel('Length').fill('720 mm');
+    await part1.getByLabel('Quantity').fill('1.5');
+
+    await expect(part1.getByRole('alert')).toHaveText(
+      'The quantity must be a whole number greater than zero.',
+    );
+    await expect(part1.getByLabel('Quantity')).toHaveAttribute('aria-invalid', 'true');
+
+    await cutList.getByRole('button', { name: 'Add Part' }).press('Enter');
+
+    const part2 = cutList.getByRole('group', { name: 'Part 2' });
+    await expect(part2.getByLabel('Name (optional)')).toBeFocused();
+
+    await part2.getByRole('button', { name: 'Remove Part 2' }).press('Enter');
+
+    await expect(part1.getByLabel('Name (optional)')).toBeFocused();
+    await expect(cutList.getByRole('group')).toHaveCount(1);
+  });
+});

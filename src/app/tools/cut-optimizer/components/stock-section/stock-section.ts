@@ -15,6 +15,7 @@ import { Button } from '../../../../shared/ui/button/button';
 import { TextField } from '../../../../shared/ui/text-field/text-field';
 import type { StockEntryTexts, TypedStockEntry } from '../../stock-entry.calc';
 import { emptyStockEntry, readStockEntry } from '../../stock-entry.calc';
+import { entryAfterRemoving } from '../../typed-entry.calc';
 
 /** The id of the length input of the Stock entry `id`, unique on the page. */
 function lengthFieldId(id: number): string {
@@ -73,11 +74,8 @@ export class StockSection {
    * one before it when it was the last, or to "Add Stock" when none is left.
    */
   protected remove(id: number): void {
-    const entries = this.entries();
-    const index = entries.findIndex((entry) => entry.id === id);
-    const remaining = entries.filter((entry) => entry.id !== id);
-    const next = remaining.at(Math.min(index, remaining.length - 1));
-    this.entries.set(remaining);
+    const next = entryAfterRemoving(this.entries(), id);
+    this.entries.update((entries) => entries.filter((entry) => entry.id !== id));
     this.focusAfterRender(next === undefined ? this.addButton() : `#${lengthFieldId(next.id)}`);
   }
 

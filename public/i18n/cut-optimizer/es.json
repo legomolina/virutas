@@ -20,9 +20,21 @@
     "remove": "Quitar",
     "removeLabel": "Quitar material {{ n }}"
   },
+  "cutList": {
+    "title": "Lista de piezas",
+    "description": "Las piezas que necesitas, por ejemplo de 720, 28 3/8\" o 720 mm de longitud. El nombre es opcional; te ayuda a distinguir las piezas en el plan de corte.",
+    "entry": "Pieza {{ n }}",
+    "name": { "label": "Nombre (opcional)" },
+    "length": { "label": "Longitud" },
+    "quantity": { "label": "Cantidad" },
+    "add": "Añadir pieza",
+    "remove": "Quitar",
+    "removeLabel": "Quitar pieza {{ n }}"
+  },
   "errors": {
     "lengthUnreadable": "No se puede leer esa longitud. Prueba con algo como 2400, 94 1/2\" o 2400 mm.",
     "lengthNotPositive": "Una longitud debe ser mayor que cero.",
-    "quantityNotPositiveInteger": "La cantidad debe ser un número entero mayor que cero, o quedar vacía para usar tanto material como haga falta."
+    "quantityNotPositiveInteger": "La cantidad debe ser un número entero mayor que cero, o quedar vacía para usar tanto material como haga falta.",
+    "partQuantityNotPositiveInteger": "La cantidad debe ser un número entero mayor que cero."
   }
 }
