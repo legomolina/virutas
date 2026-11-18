@@ -2,12 +2,8 @@ import { Component, computed, inject, input, linkedSignal, output } from '@angul
 import { TranslocoPipe } from '@jsverse/transloco';
 import { SettingsStore } from '../../../../core/settings/settings-store';
 import { readLength } from '../../../../shared/measurement/read-length.calc';
-import {
-  APPROXIMATE_MARK,
-  defaultDisplayUnit,
-  showLength,
-} from '../../../../shared/measurement/show-length.calc';
 import { TextField } from '../../../../shared/ui/text-field/text-field';
+import { editableLength } from '../../editable-length';
 
 /**
  * A length setting: a field the woodworker types a length in, kept apart from the store so
@@ -68,12 +64,10 @@ export class LengthSettingField {
     }
   }
 
-  /** Without the `≈` mark, which would not read back. */
   private show(millimetres: number): string {
-    const unitSystem = this.settings.unitSystem();
-    return showLength(millimetres, defaultDisplayUnit(unitSystem), {
+    return editableLength(millimetres, this.settings.unitSystem(), {
       precision: this.settings.imperialPrecision(),
       language: this.settings.language(),
-    }).text.replace(APPROXIMATE_MARK, '');
+    });
   }
 }

@@ -36,5 +36,27 @@
     "lengthNotPositive": "A length must be greater than zero.",
     "quantityNotPositiveInteger": "The quantity must be a whole number greater than zero, or empty for as many as needed.",
     "partQuantityNotPositiveInteger": "The quantity must be a whole number greater than zero."
+  },
+  "jobSettings": {
+    "title": "Job settings",
+    "description": "Prefilled from your defaults. Changes here apply only to this job.",
+    "defaultsLink": "Change your defaults in Settings",
+    "kerf": {
+      "label": "Kerf",
+      "hint": "Material lost in every Cut."
+    },
+    "trim": {
+      "label": "Trim at each end",
+      "hint": "Cut off both ends of every Stock before placing Parts."
+    },
+    "minimumOffcutLength": {
+      "label": "Minimum Offcut Length",
+      "hint": "Shorter leftovers count as Waste."
+    },
+    "errors": {
+      "empty": "Enter a length, or 0 for none.",
+      "unreadable": "That length can't be read. Try something like 5 mm, 1/8\" or 0.",
+      "negative": "A length can't be negative. Use 0 or more."
+    }
   }
 }

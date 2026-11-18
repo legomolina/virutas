@@ -1,0 +1,48 @@
+<section id="job-settings" aria-labelledby="job-settings-title">
+  <hgroup>
+    <h2 id="job-settings-title">{{ 'cutOptimizer.jobSettings.title' | transloco }}</h2>
+    <p>
+      {{ 'cutOptimizer.jobSettings.description' | transloco }}
+      <a routerLink="/settings">{{ 'cutOptimizer.jobSettings.defaultsLink' | transloco }}</a>
+    </p>
+  </hgroup>
+
+  @let messages =
+    {
+      empty: 'cutOptimizer.jobSettings.errors.empty' | transloco,
+      unreadable: 'cutOptimizer.jobSettings.errors.unreadable' | transloco,
+      negative: 'cutOptimizer.jobSettings.errors.negative' | transloco,
+    };
+  @let texts = this.texts();
+  @let errors = this.errors();
+
+  <div>
+    <wt-text-field
+      name="job-kerf"
+      [label]="'cutOptimizer.jobSettings.kerf.label' | transloco"
+      [hint]="'cutOptimizer.jobSettings.kerf.hint' | transloco"
+      [error]="errors.kerf && messages[errors.kerf]"
+      measurement
+      [value]="texts.kerf"
+      (valueChange)="edit('kerf', $event)"
+    />
+    <wt-text-field
+      name="job-trim"
+      [label]="'cutOptimizer.jobSettings.trim.label' | transloco"
+      [hint]="'cutOptimizer.jobSettings.trim.hint' | transloco"
+      [error]="errors.trim && messages[errors.trim]"
+      measurement
+      [value]="texts.trim"
+      (valueChange)="edit('trim', $event)"
+    />
+    <wt-text-field
+      name="job-minimum-offcut-length"
+      [label]="'cutOptimizer.jobSettings.minimumOffcutLength.label' | transloco"
+      [hint]="'cutOptimizer.jobSettings.minimumOffcutLength.hint' | transloco"
+      [error]="errors.minimumOffcutLength && messages[errors.minimumOffcutLength]"
+      measurement
+      [value]="texts.minimumOffcutLength"
+      (valueChange)="edit('minimumOffcutLength', $event)"
+    />
+  </div>
+</section>

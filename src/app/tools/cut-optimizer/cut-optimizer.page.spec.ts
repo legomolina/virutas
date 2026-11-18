@@ -1,5 +1,6 @@
 import type { ComponentFixture } from '@angular/core/testing';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { TranslocoService } from '@jsverse/transloco';
 import { SettingsStore } from '../../core/settings/settings-store';
 import optimizerEn from '../../../../public/i18n/cut-optimizer/en.json';
@@ -16,6 +17,7 @@ function render(): ComponentFixture<CutOptimizerPage> {
         'cut-optimizer/es': optimizerEs,
       }),
     ],
+    providers: [provideRouter([])],
   });
   TestBed.inject(SettingsStore).setUnitSystem('metric');
   return TestBed.createComponent(CutOptimizerPage);
@@ -123,6 +125,20 @@ function description(fixture: ComponentFixture<CutOptimizerPage>, input: HTMLEle
 
 function alerts(fixture: ComponentFixture<CutOptimizerPage>): string[] {
   return [...root(fixture).querySelectorAll('[role="alert"]')].map((a) => a.textContent.trim());
+}
+
+/** The job settings section. */
+function jobSettings(fixture: ComponentFixture<CutOptimizerPage>): HTMLElement {
+  const section = root(fixture).querySelector<HTMLElement>('section#job-settings');
+  if (!section) {
+    throw new Error('No job settings section.');
+  }
+  return section;
+}
+
+/** The value of each job setting, in order: Kerf, Trim, minimum Offcut length. */
+function shownJobSettings(fixture: ComponentFixture<CutOptimizerPage>): string[] {
+  return [...jobSettings(fixture).querySelectorAll('input')].map((input) => input.value);
 }
 
 function headings(fixture: ComponentFixture<CutOptimizerPage>): string[] {
@@ -689,6 +705,171 @@ describe('CutOptimizerPage', () => {
       await fixture.whenStable();
       await type(fixture, field(part(fixture, 'Part 1'), 'Length'), 'abc');
       await type(fixture, field(part(fixture, 'Part 1'), 'Quantity'), '0');
+
+      await expectNoAxeViolations(root(fixture));
+    });
+  });
+
+  describe('Job settings', () => {
+    const kerfLabel = 'Kerf';
+    const trimLabel = 'Trim at each end';
+    const minimumOffcutLengthLabel = 'Minimum Offcut Length';
+
+    it('shows labelled Kerf, Trim and minimum Offcut length under a heading', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      const section = jobSettings(fixture);
+
+      expect(section.querySelector('h2')?.textContent.trim()).toBe('Job settings');
+      expect(
+        [kerfLabel, trimLabel, minimumOffcutLengthLabel].map((label) =>
+          description(fixture, field(section, label)),
+        ),
+      ).toEqual([
+        ['Material lost in every Cut.'],
+        ['Cut off both ends of every Stock before placing Parts.'],
+        ['Shorter leftovers count as Waste.'],
+      ]);
+    });
+
+    it.each([
+      ['metric', ['3 mm', '0 mm', '300 mm']],
+      ['imperial', ['1/8"', '0"', '12"']],
+    ] as const)('starts from the %s defaults', async (unitSystem, shown) => {
+      const fixture = render();
+      TestBed.inject(SettingsStore).setUnitSystem(unitSystem);
+      await fixture.whenStable();
+
+      expect(shownJobSettings(fixture)).toEqual(shown);
+    });
+
+    it('starts from the defaults the woodworker set', async () => {
+      const fixture = render();
+      const store = TestBed.inject(SettingsStore);
+      store.setCutOptimizerKerf(2);
+      store.setCutOptimizerTrim(5);
+      store.setCutOptimizerMinimumOffcutLength(500);
+      await fixture.whenStable();
+
+      expect(shownJobSettings(fixture)).toEqual(['2 mm', '5 mm', '500 mm']);
+    });
+
+    it('changes only the current job, never the defaults', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      const store = TestBed.inject(SettingsStore);
+
+      await type(fixture, field(jobSettings(fixture), kerfLabel), '2.5 mm');
+      await type(fixture, field(jobSettings(fixture), trimLabel), '10 mm');
+      await type(fixture, field(jobSettings(fixture), minimumOffcutLengthLabel), '150 mm');
+
+      expect(shownJobSettings(fixture)).toEqual(['2.5 mm', '10 mm', '150 mm']);
+      expect(store.cutOptimizerDefaults()).toEqual({
+        kerfMillimetres: 3,
+        trimMillimetres: 0,
+        minimumOffcutLengthMillimetres: 300,
+      });
+      expect(store.cutOptimizerSetByUser()).toEqual({
+        kerf: false,
+        trim: false,
+        minimumOffcutLength: false,
+      });
+    });
+
+    it('keeps a changed value when the Unit System changes, and follows it elsewhere', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+
+      await type(fixture, field(jobSettings(fixture), kerfLabel), '2.5 mm');
+      TestBed.inject(SettingsStore).setUnitSystem('imperial');
+      await fixture.whenStable();
+
+      expect(shownJobSettings(fixture)).toEqual(['2.5 mm', '0"', '12"']);
+      expect(alerts(fixture)).toEqual([]);
+    });
+
+    it('accepts zero with no message', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+
+      await type(fixture, field(jobSettings(fixture), kerfLabel), '0');
+
+      expect(alerts(fixture)).toEqual([]);
+      expect(field(jobSettings(fixture), kerfLabel).getAttribute('aria-invalid')).toBeNull();
+    });
+
+    it.each([
+      {
+        label: kerfLabel,
+        text: '-1 mm',
+        message: "A length can't be negative. Use 0 or more.",
+        hint: 'Material lost in every Cut.',
+      },
+      {
+        label: trimLabel,
+        text: '5oo',
+        message: 'That length can\'t be read. Try something like 5 mm, 1/8" or 0.',
+        hint: 'Cut off both ends of every Stock before placing Parts.',
+      },
+      {
+        label: minimumOffcutLengthLabel,
+        text: '',
+        message: 'Enter a length, or 0 for none.',
+        hint: 'Shorter leftovers count as Waste.',
+      },
+    ])(
+      'shows a message on $label for $text, and on no other field',
+      async ({ label, text, message, hint }) => {
+        const fixture = render();
+        await fixture.whenStable();
+        const section = jobSettings(fixture);
+
+        await type(fixture, field(section, label), text);
+
+        expect(alerts(fixture)).toEqual([message]);
+        expect(field(section, label).getAttribute('aria-invalid')).toBe('true');
+        expect(description(fixture, field(section, label))).toEqual([hint, message]);
+        expect(section.querySelectorAll('[aria-invalid="true"]')).toHaveLength(1);
+      },
+    );
+
+    it('links to the settings, where the defaults are changed', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+
+      const link = jobSettings(fixture).querySelector('a');
+      expect(link?.textContent.trim()).toBe('Change your defaults in Settings');
+      expect(link?.getAttribute('href')).toBe('/settings');
+    });
+
+    it('is in Spanish, with its messages', async () => {
+      const fixture = render();
+      TestBed.inject(TranslocoService).setActiveLang('es');
+      await fixture.whenStable();
+      const section = jobSettings(fixture);
+
+      await type(fixture, field(section, 'Grosor de corte'), '-1');
+      await type(fixture, field(section, 'Saneado en cada extremo'), 'abc');
+      await type(fixture, field(section, 'Longitud mínima de retal'), '');
+
+      expect(section.querySelector('h2')?.textContent.trim()).toBe('Ajustes del trabajo');
+      expect(description(fixture, field(section, 'Grosor de corte'))[0]).toBe(
+        'Material que se pierde en cada corte.',
+      );
+      expect(alerts(fixture)).toEqual([
+        'Una longitud no puede ser negativa. Usa 0 o más.',
+        'No se puede leer esa longitud. Prueba con algo como 5 mm, 1/8" o 0.',
+        'Escribe una longitud, o 0 para ninguna.',
+      ]);
+      expect(section.querySelector('a')?.textContent.trim()).toBe(
+        'Cambia tus valores por defecto en Ajustes',
+      );
+    });
+
+    it('has no accessibility violations with a message shown', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await type(fixture, field(jobSettings(fixture), kerfLabel), '-1');
 
       await expectNoAxeViolations(root(fixture));
     });

@@ -36,5 +36,27 @@
     "lengthNotPositive": "Una longitud debe ser mayor que cero.",
     "quantityNotPositiveInteger": "La cantidad debe ser un número entero mayor que cero, o quedar vacía para usar tanto material como haga falta.",
     "partQuantityNotPositiveInteger": "La cantidad debe ser un número entero mayor que cero."
+  },
+  "jobSettings": {
+    "title": "Ajustes del trabajo",
+    "description": "Se rellenan con tus valores por defecto. Los cambios aquí solo afectan a este trabajo.",
+    "defaultsLink": "Cambia tus valores por defecto en Ajustes",
+    "kerf": {
+      "label": "Grosor de corte",
+      "hint": "Material que se pierde en cada corte."
+    },
+    "trim": {
+      "label": "Saneado en cada extremo",
+      "hint": "Se corta en ambos extremos de cada material antes de colocar las piezas."
+    },
+    "minimumOffcutLength": {
+      "label": "Longitud mínima de retal",
+      "hint": "Los sobrantes más cortos cuentan como desperdicio."
+    },
+    "errors": {
+      "empty": "Escribe una longitud, o 0 para ninguna.",
+      "unreadable": "No se puede leer esa longitud. Prueba con algo como 5 mm, 1/8\" o 0.",
+      "negative": "Una longitud no puede ser negativa. Usa 0 o más."
+    }
   }
 }
