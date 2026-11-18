@@ -1,0 +1,35 @@
+section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+hgroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+h2 {
+  font: var(--text-heading);
+}
+
+p {
+  font: var(--text-caption);
+  color: var(--ink-muted);
+}
+
+a {
+  color: var(--link);
+}
+
+div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: var(--space-6);
+  align-items: start;
+}
+
+wt-text-field {
+  max-inline-size: none;
+}
