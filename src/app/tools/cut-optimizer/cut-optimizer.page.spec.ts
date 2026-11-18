@@ -587,6 +587,57 @@ describe('CutOptimizerPage', () => {
       expect(description(fixture, second)).toEqual([quantityMessage]);
     });
 
+    it('shows a message on a field while the other one is still empty', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await press(fixture, button(root(fixture), 'Add Part'));
+
+      await type(fixture, field(part(fixture, 'Part 1'), 'Length'), 'abc');
+      await type(fixture, field(part(fixture, 'Part 2'), 'Quantity'), '0');
+
+      expect(alerts(fixture)).toEqual([
+        'That length can\'t be read. Try something like 2400, 94 1/2" or 2400 mm.',
+        quantityMessage,
+      ]);
+      expect(field(part(fixture, 'Part 1'), 'Length').getAttribute('aria-invalid')).toBe('true');
+      expect(field(part(fixture, 'Part 2'), 'Quantity').getAttribute('aria-invalid')).toBe('true');
+    });
+
+    it('keeps a message with its Part when a Part before it is removed', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await type(fixture, field(part(fixture, 'Part 1'), 'Quantity'), '2');
+      await press(fixture, button(root(fixture), 'Add Part'));
+      await type(fixture, field(part(fixture, 'Part 2'), 'Quantity'), '0');
+
+      await press(fixture, button(root(fixture), 'Remove Part 1'));
+
+      expect(shownParts(fixture)).toEqual([['Part 1', '', '', '0']]);
+      const quantity = field(part(fixture, 'Part 1'), 'Quantity');
+      expect(quantity.getAttribute('aria-invalid')).toBe('true');
+      expect(description(fixture, quantity)).toEqual([quantityMessage]);
+    });
+
+    it('adds an empty Part after a removal, leaving the others as they were', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await type(fixture, field(part(fixture, 'Part 1'), 'Name (optional)'), 'leg');
+      await press(fixture, button(root(fixture), 'Add Part'));
+      await type(fixture, field(part(fixture, 'Part 2'), 'Name (optional)'), 'rail');
+      await press(fixture, button(root(fixture), 'Add Part'));
+      await type(fixture, field(part(fixture, 'Part 3'), 'Name (optional)'), 'shelf');
+      await press(fixture, button(root(fixture), 'Remove Part 2'));
+
+      await press(fixture, button(root(fixture), 'Add Part'));
+
+      expect(shownParts(fixture)).toEqual([
+        ['Part 1', 'leg', '', ''],
+        ['Part 2', 'shelf', '', ''],
+        ['Part 3', '', '', ''],
+      ]);
+      expect(document.activeElement).toBe(field(part(fixture, 'Part 3'), 'Name (optional)'));
+    });
+
     it('reads a bare length in the preferred Unit System', async () => {
       const fixture = render();
       TestBed.inject(SettingsStore).setUnitSystem('imperial');

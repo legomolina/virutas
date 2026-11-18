@@ -64,6 +64,18 @@ describe('readCutListEntry', () => {
     });
   });
 
+  it('flags a length that cannot be read while the quantity is still empty', () => {
+    expect(readCutListEntry({ name: '', length: 'abc', quantity: '' }, 'metric')).toStrictEqual({
+      errors: { length: 'unreadable' },
+    });
+  });
+
+  it('flags a quantity that is not a positive integer while the length is still empty', () => {
+    expect(readCutListEntry({ name: '', length: '', quantity: '0' }, 'metric')).toStrictEqual({
+      errors: { quantity: 'not-positive-integer' },
+    });
+  });
+
   it('has no entry and no error while the length is empty', () => {
     expect(readCutListEntry({ name: 'leg', length: ' ', quantity: '2' }, 'metric')).toStrictEqual({
       errors: {},
