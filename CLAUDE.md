@@ -68,7 +68,7 @@ Trunk-based development. Never commit directly to `main`.
 3. Use Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`).
 4. Open a PR that links its issue (`Closes #<n>`). Every PR gets a preview deployment.
    Run `git push` as a command of its own, never chained with `&&`, `|` or `;`: the deny rules that block pushes to `main` match the whole command line, so `git push … && gh pr create --base main` is refused. Then run `gh pr create` separately; `main` is the default base.
-   Once a branch is on GitHub, bring it up to date with `main` through `/update-branch` (merge `origin/main`, then a plain `git push`); a rebase that needs a force-push is refused.
+   Once a branch is on GitHub it is never rebased: bring it up to date with `main` through `/update-branch`, which merges `origin/main` and pushes without force.
 5. CI (`.github/workflows/ci.yml`) runs lint, typecheck, unit tests and build, deploys the build to Cloudflare Pages (a preview per PR, production on `main`) and runs e2e against that deployment. A PR merges only when CI is green; if it fails, read the failing job's log (`gh run view --log-failed`) and fix the cause.
 6. PRs are squash-merged; the branch is deleted after merging.
 
