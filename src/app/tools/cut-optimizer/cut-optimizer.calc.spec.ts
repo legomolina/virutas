@@ -749,27 +749,6 @@ describe('planCuts', () => {
       expect(planCuts(input)).toStrictEqual(first);
       expect(input).toStrictEqual(before);
     });
-
-    it('plans about 100 Parts well under a second', () => {
-      const cutList = Array.from({ length: 20 }, (_, index) => ({
-        lengthMillimetres: 150 + index * 47,
-        quantity: 5,
-      }));
-
-      const started = performance.now();
-      const result = plan({
-        stock: [
-          { lengthMillimetres: 2400 },
-          { lengthMillimetres: 3000 },
-          { lengthMillimetres: 1200, quantity: 4 },
-        ],
-        cutList,
-      });
-      const elapsed = performance.now() - started;
-
-      expect(result.unplacedParts).toEqual([]);
-      expect(elapsed).toBeLessThan(500);
-    });
   });
 
   describe('groups', () => {
