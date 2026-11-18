@@ -1,6 +1,7 @@
 import type { ReadLengthError } from '../../shared/measurement/read-length.calc';
 import { readLength } from '../../shared/measurement/read-length.calc';
 import type { UnitSystem } from '../../shared/measurement/unit-system';
+import type { JobSettings } from './cut-optimizer.calc';
 
 /** A job setting of the Cut Optimizer, each a length of zero or more. */
 export type JobSetting = 'kerf' | 'trim' | 'minimumOffcutLength';
@@ -14,11 +15,7 @@ export type JobSettingsErrors = Readonly<Partial<Record<JobSetting, ReadLengthEr
 export interface JobSettingsReading {
   readonly errors: JobSettingsErrors;
   /** Set only when every setting can be used. */
-  readonly settings?: {
-    readonly kerfMillimetres: number;
-    readonly trimMillimetres: number;
-    readonly minimumOffcutLengthMillimetres: number;
-  };
+  readonly settings?: Omit<JobSettings, 'strategy'>;
 }
 
 /**

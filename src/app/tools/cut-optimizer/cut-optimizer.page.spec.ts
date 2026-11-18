@@ -788,50 +788,71 @@ describe('CutOptimizerPage', () => {
       expect(alerts(fixture)).toEqual([]);
     });
 
-    it('accepts zero with no message', async () => {
+    it('keeps the Imperial defaults when a value is changed in Imperial', async () => {
       const fixture = render();
+      const store = TestBed.inject(SettingsStore);
+      store.setUnitSystem('imperial');
       await fixture.whenStable();
 
-      await type(fixture, field(jobSettings(fixture), kerfLabel), '0');
+      await type(fixture, field(jobSettings(fixture), kerfLabel), '1/4');
 
+      expect(shownJobSettings(fixture)).toEqual(['1/4', '0"', '12"']);
       expect(alerts(fixture)).toEqual([]);
-      expect(field(jobSettings(fixture), kerfLabel).getAttribute('aria-invalid')).toBeNull();
+      expect(store.cutOptimizerDefaults()).toEqual({
+        kerfMillimetres: 3.175,
+        trimMillimetres: 0,
+        minimumOffcutLengthMillimetres: 304.8,
+      });
+      expect(store.cutOptimizerSetByUser().kerf).toBe(false);
     });
+
+    it.each([kerfLabel, trimLabel, minimumOffcutLengthLabel])(
+      'accepts zero for %s with no message',
+      async (label) => {
+        const fixture = render();
+        await fixture.whenStable();
+
+        await type(fixture, field(jobSettings(fixture), label), '0');
+
+        expect(alerts(fixture)).toEqual([]);
+        expect(field(jobSettings(fixture), label).getAttribute('aria-invalid')).toBeNull();
+      },
+    );
 
     it.each([
       {
         label: kerfLabel,
+        name: 'a negative Kerf',
         text: '-1 mm',
         message: "A length can't be negative. Use 0 or more.",
         hint: 'Material lost in every Cut.',
       },
       {
         label: trimLabel,
+        name: 'an unreadable Trim',
         text: '5oo',
         message: 'That length can\'t be read. Try something like 5 mm, 1/8" or 0.',
         hint: 'Cut off both ends of every Stock before placing Parts.',
       },
       {
+        name: 'an empty minimum Offcut length',
         label: minimumOffcutLengthLabel,
         text: '',
         message: 'Enter a length, or 0 for none.',
         hint: 'Shorter leftovers count as Waste.',
       },
-    ])(
-      'shows a message on $label for $text, and on no other field',
-      async ({ label, text, message, hint }) => {
-        const fixture = render();
-        await fixture.whenStable();
-        const section = jobSettings(fixture);
+    ])('shows a message for $name on its field only', async ({ label, text, message, hint }) => {
+      const fixture = render();
+      await fixture.whenStable();
+      const section = jobSettings(fixture);
 
-        await type(fixture, field(section, label), text);
+      await type(fixture, field(section, label), text);
 
-        expect(alerts(fixture)).toEqual([message]);
-        expect(field(section, label).getAttribute('aria-invalid')).toBe('true');
-        expect(description(fixture, field(section, label))).toEqual([hint, message]);
-        expect(section.querySelectorAll('[aria-invalid="true"]')).toHaveLength(1);
-      },
-    );
+      expect(alerts(fixture)).toEqual([message]);
+      expect(field(section, label).getAttribute('aria-invalid')).toBe('true');
+      expect(description(fixture, field(section, label))).toEqual([hint, message]);
+      expect(section.querySelectorAll('[aria-invalid="true"]')).toHaveLength(1);
+    });
 
     it('links to the settings, where the defaults are changed', async () => {
       const fixture = render();
