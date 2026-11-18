@@ -1,5 +1,7 @@
 import { readPositiveLength } from '../../shared/measurement/read-positive-length.calc';
 import type { UnitSystem } from '../../shared/measurement/unit-system';
+import type { Identified } from './typed-entry.calc';
+import { nextEntryId, readQuantity } from './typed-entry.calc';
 
 /** A Stock entry exactly as typed. */
 export interface StockEntryTexts {
@@ -8,13 +10,11 @@ export interface StockEntryTexts {
 }
 
 /** A Stock entry as typed on the page, with an id that stays the same while the entry exists. */
-export interface TypedStockEntry extends StockEntryTexts {
-  readonly id: number;
-}
+export interface TypedStockEntry extends StockEntryTexts, Identified {}
 
 /** A new, empty Stock entry with an id after the highest in `entries`, so no id is reused. */
 export function emptyStockEntry(entries: readonly TypedStockEntry[]): TypedStockEntry {
-  return { id: Math.max(0, ...entries.map((entry) => entry.id)) + 1, length: '', quantity: '' };
+  return { id: nextEntryId(entries), length: '', quantity: '' };
 }
 
 export interface StockEntryErrors {
@@ -32,24 +32,6 @@ export interface StockEntryReading {
   };
 }
 
-/** Digits only: no sign, decimal separator or exponent. */
-const DIGITS = /^\d+$/u;
-
-/**
- * Reads a typed quantity: `{}` when it is empty (as many as needed), `{ quantity }` for a positive
- * integer, `undefined` for anything else.
- */
-function readQuantity(text: string): { readonly quantity?: number } | undefined {
-  const trimmed = text.trim();
-  if (trimmed === '') {
-    return {};
-  }
-  const quantity = Number(trimmed);
-  return DIGITS.test(trimmed) && quantity > 0 && Number.isSafeInteger(quantity)
-    ? { quantity }
-    : undefined;
-}
-
 /**
  * Reads a typed Stock entry. An empty quantity means as many as needed. A value that cannot be
  * used is reported on its own field, whatever the other holds.
@@ -60,11 +42,17 @@ export function readStockEntry(texts: StockEntryTexts, unitSystem: UnitSystem): 
 
   const errors: StockEntryErrors = {
     ...(length.state === 'error' ? { length: length.error } : {}),
-    ...(quantity === undefined ? { quantity: 'not-positive-integer' } : {}),
+    ...(quantity.state === 'error' ? { quantity: 'not-positive-integer' } : {}),
   };
 
-  if (length.state !== 'ok' || quantity === undefined) {
+  if (length.state !== 'ok' || quantity.state === 'error') {
     return { errors };
   }
-  return { errors, entry: { lengthMillimetres: length.millimetres, ...quantity } };
+  return {
+    errors,
+    entry: {
+      lengthMillimetres: length.millimetres,
+      ...(quantity.state === 'ok' ? { quantity: quantity.quantity } : {}),
+    },
+  };
 }

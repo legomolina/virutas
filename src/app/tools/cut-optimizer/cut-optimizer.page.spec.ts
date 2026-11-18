@@ -25,22 +25,37 @@ function root(fixture: ComponentFixture<CutOptimizerPage>): HTMLElement {
   return fixture.nativeElement as HTMLElement;
 }
 
-/** The Stock entries, in order. */
-function stockEntries(fixture: ComponentFixture<CutOptimizerPage>): HTMLFieldSetElement[] {
-  return [...root(fixture).querySelectorAll<HTMLFieldSetElement>('section#stock fieldset')];
+/** The entries of the section `section` (`stock` or `cut-list`), in order. */
+function entries(
+  fixture: ComponentFixture<CutOptimizerPage>,
+  section: string,
+): HTMLFieldSetElement[] {
+  return [...root(fixture).querySelectorAll<HTMLFieldSetElement>(`section#${section} fieldset`)];
+}
+
+function entryIn(
+  fixture: ComponentFixture<CutOptimizerPage>,
+  section: string,
+  legend: string,
+): HTMLFieldSetElement {
+  const found = entries(fixture, section).find(
+    (fieldset) => fieldset.querySelector('legend')?.textContent.trim() === legend,
+  );
+  if (!found) {
+    throw new Error(`No entry "${legend}".`);
+  }
+  return found;
 }
 
 function stockEntry(
   fixture: ComponentFixture<CutOptimizerPage>,
   legend: string,
 ): HTMLFieldSetElement {
-  const entry = stockEntries(fixture).find(
-    (fieldset) => fieldset.querySelector('legend')?.textContent.trim() === legend,
-  );
-  if (!entry) {
-    throw new Error(`No Stock entry "${legend}".`);
-  }
-  return entry;
+  return entryIn(fixture, 'stock', legend);
+}
+
+function part(fixture: ComponentFixture<CutOptimizerPage>, legend: string): HTMLFieldSetElement {
+  return entryIn(fixture, 'cut-list', legend);
 }
 
 /** The input inside `entry` whose visible label is `label`. */
@@ -54,12 +69,20 @@ function field(entry: HTMLElement, label: string): HTMLInputElement {
   return found;
 }
 
-/** What the woodworker sees in each Stock entry: its legend and its field values. */
-function shownStock(fixture: ComponentFixture<CutOptimizerPage>): string[][] {
-  return stockEntries(fixture).map((entry) => [
-    entry.querySelector('legend')!.textContent.trim(),
-    ...[...entry.querySelectorAll('input')].map((input) => input.value),
+/** What the woodworker sees in each entry of `section`: its legend and its field values. */
+function shown(fixture: ComponentFixture<CutOptimizerPage>, section: string): string[][] {
+  return entries(fixture, section).map((fieldset) => [
+    fieldset.querySelector('legend')!.textContent.trim(),
+    ...[...fieldset.querySelectorAll('input')].map((input) => input.value),
   ]);
+}
+
+function shownStock(fixture: ComponentFixture<CutOptimizerPage>): string[][] {
+  return shown(fixture, 'stock');
+}
+
+function shownParts(fixture: ComponentFixture<CutOptimizerPage>): string[][] {
+  return shown(fixture, 'cut-list');
 }
 
 async function type(
@@ -370,6 +393,251 @@ describe('CutOptimizerPage', () => {
       await fixture.whenStable();
       await type(fixture, field(stockEntry(fixture, 'Stock 1'), 'Length'), 'abc');
       await type(fixture, field(stockEntry(fixture, 'Stock 1'), 'Quantity'), '0');
+
+      await expectNoAxeViolations(root(fixture));
+    });
+  });
+
+  describe('Cut List', () => {
+    const quantityMessage = 'The quantity must be a whole number greater than zero.';
+
+    it('starts with one empty Part with a labelled name, length and quantity', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+
+      expect(root(fixture).querySelector('section#cut-list h2')?.textContent.trim()).toBe(
+        'Cut List',
+      );
+      expect(shownParts(fixture)).toEqual([['Part 1', '', '', '']]);
+      const first = part(fixture, 'Part 1');
+      expect(field(first, 'Name (optional)').value).toBe('');
+      expect(field(first, 'Length').value).toBe('');
+      expect(field(first, 'Quantity').value).toBe('');
+    });
+
+    it('adds a Part at the end and moves focus to its name', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await type(fixture, field(part(fixture, 'Part 1'), 'Length'), '720 mm');
+      await type(fixture, field(part(fixture, 'Part 1'), 'Quantity'), '6');
+
+      await press(fixture, button(root(fixture), 'Add Part'));
+
+      expect(shownParts(fixture)).toEqual([
+        ['Part 1', '', '720 mm', '6'],
+        ['Part 2', '', '', ''],
+      ]);
+      expect(document.activeElement).toBe(field(part(fixture, 'Part 2'), 'Name (optional)'));
+    });
+
+    it('keeps what is typed in each Part, with and without a name', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await press(fixture, button(root(fixture), 'Add Part'));
+
+      await type(fixture, field(part(fixture, 'Part 1'), 'Length'), '720 mm');
+      await type(fixture, field(part(fixture, 'Part 1'), 'Quantity'), '6');
+      await type(fixture, field(part(fixture, 'Part 2'), 'Name (optional)'), 'rail');
+      await type(fixture, field(part(fixture, 'Part 2'), 'Length'), '21 1/4"');
+      await type(fixture, field(part(fixture, 'Part 2'), 'Quantity'), '4');
+
+      expect(shownParts(fixture)).toEqual([
+        ['Part 1', '', '720 mm', '6'],
+        ['Part 2', 'rail', '21 1/4"', '4'],
+      ]);
+      expect(alerts(fixture)).toEqual([]);
+    });
+
+    it('edits a Part, adding and clearing its name', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      const first = part(fixture, 'Part 1');
+      await type(fixture, field(first, 'Length'), '720');
+      await type(fixture, field(first, 'Quantity'), '6');
+
+      await type(fixture, field(first, 'Name (optional)'), 'leg');
+      expect(shownParts(fixture)).toEqual([['Part 1', 'leg', '720', '6']]);
+
+      await type(fixture, field(first, 'Name (optional)'), '');
+      await type(fixture, field(first, 'Length'), '700');
+      await type(fixture, field(first, 'Quantity'), '4');
+      expect(shownParts(fixture)).toEqual([['Part 1', '', '700', '4']]);
+      expect(alerts(fixture)).toEqual([]);
+    });
+
+    it('keeps the Cut List apart from the Stock', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+
+      await type(fixture, field(stockEntry(fixture, 'Stock 1'), 'Length'), '2400');
+      await type(fixture, field(part(fixture, 'Part 1'), 'Length'), '720');
+
+      expect(shownStock(fixture)).toEqual([['Stock 1', '2400', '']]);
+      expect(shownParts(fixture)).toEqual([['Part 1', '', '720', '']]);
+    });
+
+    it('removes a Part, numbers the rest in order and focuses the Part that took its place', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await type(fixture, field(part(fixture, 'Part 1'), 'Name (optional)'), 'leg');
+      await press(fixture, button(root(fixture), 'Add Part'));
+      await type(fixture, field(part(fixture, 'Part 2'), 'Name (optional)'), 'rail');
+      await press(fixture, button(root(fixture), 'Add Part'));
+      await type(fixture, field(part(fixture, 'Part 3'), 'Name (optional)'), 'shelf');
+
+      await press(fixture, button(root(fixture), 'Remove Part 2'));
+
+      expect(shownParts(fixture)).toEqual([
+        ['Part 1', 'leg', '', ''],
+        ['Part 2', 'shelf', '', ''],
+      ]);
+      expect(document.activeElement).toBe(field(part(fixture, 'Part 2'), 'Name (optional)'));
+    });
+
+    it('focuses the Part before when the last one is removed', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await type(fixture, field(part(fixture, 'Part 1'), 'Name (optional)'), 'leg');
+      await press(fixture, button(root(fixture), 'Add Part'));
+
+      await press(fixture, button(root(fixture), 'Remove Part 2'));
+
+      expect(shownParts(fixture)).toEqual([['Part 1', 'leg', '', '']]);
+      expect(document.activeElement).toBe(field(part(fixture, 'Part 1'), 'Name (optional)'));
+    });
+
+    it('focuses "Add Part" when the only Part is removed', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+
+      await press(fixture, button(root(fixture), 'Remove Part 1'));
+
+      expect(shownParts(fixture)).toEqual([]);
+      expect(document.activeElement).toBe(button(root(fixture), 'Add Part'));
+    });
+
+    it('shows each Remove button as "Remove" and names it after its Part', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+
+      expect(button(part(fixture, 'Part 1'), 'Remove Part 1').textContent.trim()).toBe('Remove');
+    });
+
+    it('shows no message while the length and the quantity are empty', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      const first = part(fixture, 'Part 1');
+
+      await type(fixture, field(first, 'Name (optional)'), 'leg');
+
+      expect(alerts(fixture)).toEqual([]);
+      expect(field(first, 'Length').getAttribute('aria-invalid')).toBeNull();
+      expect(field(first, 'Quantity').getAttribute('aria-invalid')).toBeNull();
+    });
+
+    it.each([
+      ['72o', 'That length can\'t be read. Try something like 2400, 94 1/2" or 2400 mm.'],
+      ['0', 'A length must be greater than zero.'],
+      ['-720 mm', 'A length must be greater than zero.'],
+    ])('shows a message for the length %j on the length only', async (length, message) => {
+      const fixture = render();
+      await fixture.whenStable();
+      const first = part(fixture, 'Part 1');
+
+      await type(fixture, field(first, 'Quantity'), '2');
+      await type(fixture, field(first, 'Length'), length);
+
+      expect(alerts(fixture)).toEqual([message]);
+      expect(field(first, 'Length').getAttribute('aria-invalid')).toBe('true');
+      expect(description(fixture, field(first, 'Length'))).toEqual([message]);
+      expect(field(first, 'Quantity').getAttribute('aria-invalid')).toBeNull();
+      expect(field(first, 'Name (optional)').getAttribute('aria-invalid')).toBeNull();
+    });
+
+    it.each(['0', '-1', '1.5', 'two'])(
+      'shows a message for the quantity %j on the quantity only',
+      async (quantity) => {
+        const fixture = render();
+        await fixture.whenStable();
+        const first = part(fixture, 'Part 1');
+
+        await type(fixture, field(first, 'Length'), '720');
+        await type(fixture, field(first, 'Quantity'), quantity);
+
+        expect(alerts(fixture)).toEqual([quantityMessage]);
+        expect(field(first, 'Quantity').getAttribute('aria-invalid')).toBe('true');
+        expect(description(fixture, field(first, 'Quantity'))).toEqual([quantityMessage]);
+        expect(field(first, 'Length').getAttribute('aria-invalid')).toBeNull();
+      },
+    );
+
+    it('shows each message in the Part it belongs to', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await press(fixture, button(root(fixture), 'Add Part'));
+
+      await type(fixture, field(part(fixture, 'Part 1'), 'Quantity'), '2');
+      await type(fixture, field(part(fixture, 'Part 2'), 'Quantity'), '0');
+
+      const first = field(part(fixture, 'Part 1'), 'Quantity');
+      const second = field(part(fixture, 'Part 2'), 'Quantity');
+      expect(first.getAttribute('aria-invalid')).toBeNull();
+      expect(description(fixture, first)).toEqual([]);
+      expect(second.getAttribute('aria-invalid')).toBe('true');
+      expect(description(fixture, second)).toEqual([quantityMessage]);
+    });
+
+    it('reads a bare length in the preferred Unit System', async () => {
+      const fixture = render();
+      TestBed.inject(SettingsStore).setUnitSystem('imperial');
+      await fixture.whenStable();
+      const first = part(fixture, 'Part 1');
+
+      await type(fixture, field(first, 'Length'), '28 3/8');
+      expect(alerts(fixture)).toEqual([]);
+
+      TestBed.inject(SettingsStore).setUnitSystem('metric');
+      await fixture.whenStable();
+      expect(alerts(fixture)).toEqual([
+        'That length can\'t be read. Try something like 2400, 94 1/2" or 2400 mm.',
+      ]);
+    });
+
+    it('is in Spanish, with its messages', async () => {
+      const fixture = render();
+      TestBed.inject(TranslocoService).setActiveLang('es');
+      await fixture.whenStable();
+      const first = part(fixture, 'Pieza 1');
+
+      await type(fixture, field(first, 'Nombre (opcional)'), 'pata');
+      await type(fixture, field(first, 'Longitud'), 'abc');
+      await type(fixture, field(first, 'Cantidad'), '1,5');
+
+      expect(root(fixture).querySelector('section#cut-list h2')?.textContent.trim()).toBe(
+        'Lista de piezas',
+      );
+      expect(alerts(fixture)).toEqual([
+        'No se puede leer esa longitud. Prueba con algo como 2400, 94 1/2" o 2400 mm.',
+        'La cantidad debe ser un número entero mayor que cero.',
+      ]);
+      expect(button(first, 'Quitar pieza 1').textContent.trim()).toBe('Quitar');
+      expect(button(root(fixture), 'Añadir pieza')).toBeTruthy();
+    });
+
+    it('has no accessibility violations with several Parts', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await type(fixture, field(part(fixture, 'Part 1'), 'Name (optional)'), 'leg');
+      await press(fixture, button(root(fixture), 'Add Part'));
+
+      await expectNoAxeViolations(root(fixture));
+    });
+
+    it('has no accessibility violations with a message shown', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await type(fixture, field(part(fixture, 'Part 1'), 'Length'), 'abc');
+      await type(fixture, field(part(fixture, 'Part 1'), 'Quantity'), '0');
 
       await expectNoAxeViolations(root(fixture));
     });
