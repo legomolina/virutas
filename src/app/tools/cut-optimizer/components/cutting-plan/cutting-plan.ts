@@ -1,11 +1,25 @@
 import type { ElementRef } from '@angular/core';
-import { Component, computed, input, viewChild } from '@angular/core';
+import { Component, computed, input, signal, viewChild } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 import type { ShowLengthOptions } from '../../../../shared/measurement/show-length.calc';
 import { defaultDisplayUnit, showLength } from '../../../../shared/measurement/show-length.calc';
 import type { UnitSystem } from '../../../../shared/measurement/unit-system';
 import type { CutOptimizerInput, CuttingPlan, StrategyId } from '../../cut-optimizer.calc';
-import { groupUnplacedParts, longestUsableLength } from '../../cutting-plan-view.calc';
+import type { StockLayout } from '../../cut-optimizer.calc';
+import {
+  expandGroups,
+  groupUnplacedParts,
+  longestUsableLength,
+} from '../../cutting-plan-view.calc';
+
+/** A layout read as text, every length already shown in the preferred Unit System. */
+interface LayoutText {
+  readonly parts: readonly { readonly name?: string; readonly length: string }[];
+  readonly cuts: number;
+  /** Absent when there is no Trim. */
+  readonly trim?: string;
+  readonly leftover: { readonly kind: StockLayout['leftover']['kind']; readonly length: string };
+}
 
 /** The translation key of each Strategy's name. */
 const STRATEGY_NAMES: Readonly<Record<StrategyId, string>> = {
@@ -14,7 +28,8 @@ const STRATEGY_NAMES: Readonly<Record<StrategyId, string>> = {
 
 /**
  * The Cutting Plan read as text: a summary with the totals and the settings it was built with,
- * the Unplaced Parts with their reason, then the layouts, identical ones grouped with a count.
+ * the Unplaced Parts with their reason, then the layouts, identical ones grouped with a count until
+ * "Show every Stock" expands them into individual Stock to tick off one by one.
  * Every length is shown in the preferred Unit System, with `≈` when rounded.
  */
 @Component({
@@ -35,12 +50,24 @@ export class CuttingPlanView {
 
   readonly lengthOptions = input.required<ShowLengthOptions>();
 
+  /** Whether each group of identical layouts is expanded into its individual Stock. */
+  protected readonly everyStock = signal(false);
+
   protected readonly view = computed(() => {
     const plan = this.plan();
     const { settings } = this.input();
     const unit = defaultDisplayUnit(this.unitSystem());
     const options = this.lengthOptions();
     const show = (millimetres: number): string => showLength(millimetres, unit, options).text;
+    const describeLayout = (layout: StockLayout): LayoutText => ({
+      parts: layout.parts.map((part) => ({
+        name: part.name,
+        length: show(part.lengthMillimetres),
+      })),
+      cuts: layout.cuts,
+      trim: settings.trimMillimetres > 0 ? show(settings.trimMillimetres) : undefined,
+      leftover: { kind: layout.leftover.kind, length: show(layout.leftover.lengthMillimetres) },
+    });
 
     return {
       stockTotal: plan.layouts.length,
@@ -66,17 +93,25 @@ export class CuttingPlanView {
         })),
       })),
       longestUsable: show(longestUsableLength(this.input())),
-      groups: plan.groups.map(({ layout, count }) => ({
-        count,
-        stockLength: show(layout.stockLengthMillimetres),
-        parts: layout.parts.map((part) => ({
-          name: part.name,
-          length: show(part.lengthMillimetres),
-        })),
-        cuts: layout.cuts,
-        trim: settings.trimMillimetres > 0 ? show(settings.trimMillimetres) : undefined,
-        leftover: { kind: layout.leftover.kind, length: show(layout.leftover.lengthMillimetres) },
-      })),
+      layouts: this.everyStock()
+        ? expandGroups(plan.groups).map(({ layout, position }) => ({
+            heading: {
+              key: 'cutOptimizer.plan.layouts.headingOne',
+              params: {
+                position,
+                total: plan.layouts.length,
+                length: show(layout.stockLengthMillimetres),
+              },
+            },
+            ...describeLayout(layout),
+          }))
+        : plan.groups.map(({ layout, count }) => ({
+            heading: {
+              key: 'cutOptimizer.plan.layouts.heading',
+              params: { count, length: show(layout.stockLengthMillimetres) },
+            },
+            ...describeLayout(layout),
+          })),
     };
   });
 

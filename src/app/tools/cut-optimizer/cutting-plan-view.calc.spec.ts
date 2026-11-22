@@ -1,5 +1,5 @@
-import type { UnplacedPart } from './cut-optimizer.calc';
-import { groupUnplacedParts, longestUsableLength } from './cutting-plan-view.calc';
+import type { LayoutGroup, StockLayout, UnplacedPart } from './cut-optimizer.calc';
+import { expandGroups, groupUnplacedParts, longestUsableLength } from './cutting-plan-view.calc';
 
 describe('groupUnplacedParts', () => {
   it('has no groups when every Part is placed', () => {
@@ -76,5 +76,44 @@ describe('longestUsableLength', () => {
         },
       }),
     ).toBe(0);
+  });
+});
+
+describe('expandGroups', () => {
+  const legs: StockLayout = {
+    stockEntryIndex: 0,
+    stockLengthMillimetres: 2400,
+    parts: [
+      { name: 'leg', lengthMillimetres: 720, startMillimetres: 0 },
+      { name: 'leg', lengthMillimetres: 720, startMillimetres: 723 },
+      { name: 'rail', lengthMillimetres: 540, startMillimetres: 1446 },
+    ],
+    cuts: 3,
+    leftover: { kind: 'waste', lengthMillimetres: 405 },
+  };
+  const shelf: StockLayout = {
+    stockEntryIndex: 1,
+    stockLengthMillimetres: 1800,
+    parts: [{ name: 'shelf', lengthMillimetres: 1100, startMillimetres: 0 }],
+    cuts: 1,
+    leftover: { kind: 'offcut', lengthMillimetres: 697 },
+  };
+
+  it('has no Stock when the plan has no layouts', () => {
+    expect(expandGroups([])).toEqual([]);
+  });
+
+  it('repeats each group once per Stock, numbering every Stock in the plan, group by group', () => {
+    const groups: LayoutGroup[] = [
+      { layout: legs, count: 3 },
+      { layout: shelf, count: 1 },
+    ];
+
+    expect(expandGroups(groups)).toEqual([
+      { layout: legs, position: 1 },
+      { layout: legs, position: 2 },
+      { layout: legs, position: 3 },
+      { layout: shelf, position: 4 },
+    ]);
   });
 });

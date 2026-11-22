@@ -99,7 +99,9 @@
     },
     "layouts": {
       "title": "Distribución por material",
+      "showEveryStock": "Mostrar cada material por separado",
       "heading": "{{ count }}× material de {{ length }}",
+      "headingOne": "Material {{ position }} de {{ total }} · {{ length }}",
       "cutOrder": "Orden de corte",
       "cuts": "Cortes",
       "trim": "Saneado",
