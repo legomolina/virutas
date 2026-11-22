@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { generateCuttingPlan } from './cutting-plan';
 
 test.use({ locale: 'en-US' });
 
@@ -111,5 +112,34 @@ test.describe('the Cut List', () => {
 
     await expect(part1.getByLabel('Name (optional)')).toBeFocused();
     await expect(cutList.getByRole('group')).toHaveCount(1);
+  });
+});
+
+test.describe('the Cutting Plan', () => {
+  test('draws each Part and Offcut as wide as its share of the Stock', async ({ page }) => {
+    await page.goto('/cut-optimizer');
+    await generateCuttingPlan(page);
+    const bars = page.locator('article wt-stock-bar');
+    await expect(bars.first()).toBeVisible();
+
+    // Kerf, Trim and Waste have a minimum width; every other segment shares what is left by its
+    // length (its flex-grow). How far, in pixels, each one is from its exact share:
+    const offsets = await bars.evaluateAll((elements) =>
+      elements.flatMap((bar) => {
+        const segments = [
+          ...bar.querySelectorAll<HTMLElement>('[data-kind="part"], [data-kind="offcut"]'),
+        ].map((segment) => ({
+          length: Number(segment.style.flexGrow),
+          width: segment.getBoundingClientRect().width,
+        }));
+        const pixelsPerUnit =
+          segments.reduce((sum, { width }) => sum + width, 0) /
+          segments.reduce((sum, { length }) => sum + length, 0);
+        return segments.map(({ length, width }) => Math.abs(width - length * pixelsPerUnit));
+      }),
+    );
+
+    expect(offsets.length).toBeGreaterThan(4);
+    expect(Math.max(...offsets)).toBeLessThan(1);
   });
 });

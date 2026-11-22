@@ -207,6 +207,17 @@ function layouts(fixture: ComponentFixture<CutOptimizerPage>): string[][] {
   ]);
 }
 
+/** Each layout's bar, as its segments `[kind, flex-grow, labels]`. */
+function bars(fixture: ComponentFixture<CutOptimizerPage>): [string | null, string, string][][] {
+  return [...plan(fixture).querySelectorAll('article wt-stock-bar')].map((bar) =>
+    [...bar.querySelectorAll<HTMLElement>('[data-kind]')].map((segment) => [
+      segment.getAttribute('data-kind'),
+      segment.style.flexGrow,
+      [...segment.children].map((child) => textOf(child)).join(' | '),
+    ]),
+  );
+}
+
 function unplacedParts(fixture: ComponentFixture<CutOptimizerPage>): string[] {
   return [...plan(fixture).querySelectorAll('section#unplaced-parts li')].map((li) => textOf(li));
 }
@@ -1106,6 +1117,110 @@ describe('CutOptimizerPage', () => {
         ],
       ]);
       expect(totals(fixture)[2]).toEqual(['Offcuts to keep', 'None']);
+    });
+
+    it('draws a bar of each layout under its heading, sized and labelled like its text', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, ...legsAndShelf);
+
+      await press(fixture, generateButton(fixture));
+
+      for (const article of plan(fixture).querySelectorAll('article')) {
+        expect(article.querySelector('h4 + wt-stock-bar')).not.toBeNull();
+      }
+      expect(bars(fixture)).toEqual([
+        [
+          ['part', '2000', '1 | 2000 mm'],
+          ['kerf', '3', ''],
+          ['offcut', '397', 'Offcut | 397 mm'],
+        ],
+        [
+          ['part', '720', '1 | 720 mm'],
+          ['kerf', '3', ''],
+          ['part', '720', '2 | 720 mm'],
+          ['kerf', '3', ''],
+          ['part', '720', '3 | 720 mm'],
+          ['kerf', '3', ''],
+          ['waste', '231', ''],
+        ],
+      ]);
+    });
+
+    it('draws the Trim at both ends and moves the number of a very short Part under the bar', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(
+        fixture,
+        [['2400', '']],
+        [
+          ['rail', '900', '2'],
+          ['stile', '540', '1'],
+          ['spacer', '30', '1'],
+        ],
+      );
+      await type(fixture, field(jobSettings(fixture), 'Trim at each end'), '5');
+
+      await press(fixture, generateButton(fixture));
+
+      // 5 + 900 + 3 + 900 + 3 + 540 + 3 + 30 + 3 + 8 + 5 = 2 400 mm; the spacer is 1.25 % of it.
+      expect(bars(fixture)).toEqual([
+        [
+          ['trim', '5', ''],
+          ['part', '900', '1 | 900 mm'],
+          ['kerf', '3', ''],
+          ['part', '900', '2 | 900 mm'],
+          ['kerf', '3', ''],
+          ['part', '540', '3 | 540 mm'],
+          ['kerf', '3', ''],
+          ['part', '30', ''],
+          ['kerf', '3', ''],
+          ['waste', '8', ''],
+          ['trim', '5', ''],
+        ],
+      ]);
+      expect(textOf(plan(fixture).querySelector('article wt-stock-bar [data-marker]'))).toBe('4');
+      expect(layouts(fixture)[0]).toContain('spacer 30 mm');
+    });
+
+    it('explains the bars once, above the layouts', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, ...legsAndShelf);
+
+      await press(fixture, generateButton(fixture));
+
+      const legends = plan(fixture).querySelectorAll('section#layouts wt-stock-bar-legend');
+      expect(legends).toHaveLength(1);
+      expect([...legends[0].querySelectorAll('li')].map((item) => textOf(item))).toEqual([
+        '1 Part, numbered in Cut order',
+        'Kerf',
+        'Trim',
+        'Offcut, keep it',
+        'Waste',
+      ]);
+      expect(legends[0].nextElementSibling?.tagName).toBe('ARTICLE');
+    });
+
+    it('labels the bars and their legend in Spanish', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, ...legsAndShelf);
+      await press(fixture, generateButton(fixture));
+
+      TestBed.inject(TranslocoService).setActiveLang('es');
+      await fixture.whenStable();
+
+      expect(bars(fixture)[0][2]).toEqual(['offcut', '397', 'Retal | 397 mm']);
+      expect(
+        [...plan(fixture).querySelectorAll('wt-stock-bar-legend li')].map((item) => textOf(item)),
+      ).toEqual([
+        '1 Pieza, numerada en orden de corte',
+        'Grosor de corte',
+        'Saneado',
+        'Retal, guárdalo',
+        'Desperdicio',
+      ]);
     });
 
     it('lists the Unplaced Parts with their reason above a partial plan', async () => {

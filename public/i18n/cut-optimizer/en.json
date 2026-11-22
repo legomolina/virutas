@@ -108,7 +108,17 @@
       "leftover": "Leftover",
       "offcut": "Offcut {{ length }}, keep it",
       "waste": "Waste {{ length }}",
-      "leftoverNone": "None, the Parts use the whole Stock"
+      "leftoverNone": "None, the Parts use the whole Stock",
+      "bar": {
+        "offcut": "Offcut",
+        "legend": {
+          "part": "Part, numbered in Cut order",
+          "kerf": "Kerf",
+          "trim": "Trim",
+          "offcut": "Offcut, keep it",
+          "waste": "Waste"
+        }
+      }
     }
   }
 }
