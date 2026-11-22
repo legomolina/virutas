@@ -1324,6 +1324,14 @@ describe('CutOptimizerPage', () => {
           async (fixture): Promise<void> => press(fixture, button(root(fixture), 'Add Stock')),
         ],
         [
+          'removing Stock',
+          async (fixture): Promise<void> => press(fixture, button(root(fixture), 'Remove Stock 1')),
+        ],
+        [
+          'adding a Part',
+          async (fixture): Promise<void> => press(fixture, button(root(fixture), 'Add Part')),
+        ],
+        [
           'changing a Part name',
           async (fixture): Promise<void> =>
             type(fixture, field(part(fixture, 'Part 1'), 'Name (optional)'), 'stile'),
@@ -1341,6 +1349,13 @@ describe('CutOptimizerPage', () => {
         [
           'removing a Part',
           async (fixture): Promise<void> => press(fixture, button(root(fixture), 'Remove Part 2')),
+        ],
+        [
+          'changing the Kerf default in the settings, which the Kerf field shows',
+          async (fixture): Promise<void> => {
+            TestBed.inject(SettingsStore).setCutOptimizerKerf(4);
+            await fixture.whenStable();
+          },
         ],
         [
           'changing the Kerf',
@@ -1427,7 +1442,9 @@ describe('CutOptimizerPage', () => {
       it('is announced politely from a live region that is on the page before the change', async () => {
         const fixture = await generated();
         const region = status(fixture);
-        expect(region.getAttribute('aria-live') ?? 'polite').toBe('polite');
+        // A status is polite unless it says otherwise.
+        expect(region.getAttribute('aria-live')).toBeNull();
+        expect(textOf(region)).toBe('');
 
         await type(fixture, field(jobSettings(fixture), 'Kerf'), '4');
 

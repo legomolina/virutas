@@ -8,7 +8,9 @@ import {
   viewChild,
 } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
+import type { CutOptimizerDefaults } from '../../core/settings/cut-optimizer-defaults.calc';
 import { SettingsStore } from '../../core/settings/settings-store';
+import type { UnitSystem } from '../../shared/measurement/unit-system';
 import { Button } from '../../shared/ui/button/button';
 import { CutListSection } from './components/cut-list-section/cut-list-section';
 import { CuttingPlanView } from './components/cutting-plan/cutting-plan';
@@ -24,12 +26,25 @@ import type { JobSettingsTexts } from './job-settings.calc';
 import type { TypedStockEntry } from './stock-entry.calc';
 import { emptyStockEntry } from './stock-entry.calc';
 
+/**
+ * Everything the engine's input is read from, at one moment. Compared by identity: any change
+ * makes a new one, even a change back to an earlier value.
+ */
+interface InputSnapshot {
+  readonly stock: readonly TypedStockEntry[];
+  readonly cutList: readonly TypedCutListEntry[];
+  readonly jobSettingsEdits: Partial<JobSettingsTexts>;
+  readonly strategy: StrategyId;
+  readonly defaults: CutOptimizerDefaults;
+  readonly unitSystem: UnitSystem;
+}
+
 /** A generated Cutting Plan with the input it was generated from. */
 interface GeneratedPlan {
   readonly plan: CuttingPlan;
   readonly input: CutOptimizerInput;
-  /** Everything the input was read from, as it was when the plan was generated. */
-  readonly sources: unknown;
+  /** What was typed and set when the plan was generated. */
+  readonly inputSnapshot: InputSnapshot;
 }
 
 /** The Cut Optimizer's page. */
@@ -103,10 +118,10 @@ export default class CutOptimizerPage {
   );
 
   /**
-   * Everything the engine's input is read from. It is a new object whenever one of them
-   * changes, even back to an earlier value, and not when only the language or precision does.
+   * Everything the engine's input is read from, as it is now. Changing the language or the
+   * precision does not change it: they change how lengths are shown, not the input.
    */
-  private readonly sources = computed(() => ({
+  private readonly inputSnapshot = computed<InputSnapshot>(() => ({
     stock: this.stock(),
     cutList: this.cutList(),
     jobSettingsEdits: this.jobSettingsEdits(),
@@ -121,7 +136,7 @@ export default class CutOptimizerPage {
   /** Whether any input changed since the Cutting Plan was generated. Undoing it does not count. */
   protected readonly outOfDate = computed(() => {
     const generated = this.generated();
-    return generated !== undefined && generated.sources !== this.sources();
+    return generated !== undefined && generated.inputSnapshot !== this.inputSnapshot();
   });
 
   /** Builds the Cutting Plan from the current input and moves focus to its summary. */
@@ -133,7 +148,7 @@ export default class CutOptimizerPage {
     this.generated.set({
       plan: planCuts(request.input),
       input: request.input,
-      sources: this.sources(),
+      inputSnapshot: this.inputSnapshot(),
     });
     afterNextRender(() => this.cuttingPlan()?.focusSummary(), { injector: this.injector });
   }

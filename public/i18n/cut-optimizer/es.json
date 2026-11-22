@@ -14,13 +14,8 @@
     "title": "Material",
     "description": "Las longitudes de las que puedes cortar. Por ejemplo 2400, 94 1/2\" o 2400 mm; sin unidad, los números usan tu sistema de medida preferido.",
     "entry": "Material {{ n }}",
-    "length": {
-      "label": "Longitud"
-    },
-    "quantity": {
-      "label": "Cantidad",
-      "hint": "Vacía: tanto material como haga falta."
-    },
+    "length": { "label": "Longitud" },
+    "quantity": { "label": "Cantidad", "hint": "Vacía: tanto material como haga falta." },
     "add": "Añadir material",
     "remove": "Quitar",
     "removeLabel": "Quitar material {{ n }}"
@@ -29,15 +24,9 @@
     "title": "Lista de piezas",
     "description": "Las piezas que necesitas, por ejemplo de 720, 28 3/8\" o 720 mm de longitud. El nombre es opcional; te ayuda a distinguir las piezas en el plan de corte.",
     "entry": "Pieza {{ n }}",
-    "name": {
-      "label": "Nombre (opcional)"
-    },
-    "length": {
-      "label": "Longitud"
-    },
-    "quantity": {
-      "label": "Cantidad"
-    },
+    "name": { "label": "Nombre (opcional)" },
+    "length": { "label": "Longitud" },
+    "quantity": { "label": "Cantidad" },
     "add": "Añadir pieza",
     "remove": "Quitar",
     "removeLabel": "Quitar pieza {{ n }}"
