@@ -3,6 +3,21 @@
   color: var(--ink);
 }
 
+/*
+ * Forced colours would drop the fills and hatches that tell the kinds apart: draw them in the
+ * user's system colours instead.
+ */
+@media (forced-colors: active) {
+  :host {
+    --ink: CanvasText;
+    --maple: Canvas;
+    --surface-raised: Canvas;
+    --surface-sunken: Canvas;
+
+    forced-color-adjust: none;
+  }
+}
+
 .segments {
   overflow: hidden;
   display: flex;

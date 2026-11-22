@@ -3,6 +3,19 @@
   color: var(--ink);
 }
 
+/* As in <wt-stock-bar>: the swatches keep their patterns, in the user's system colours. */
+@media (forced-colors: active) {
+  :host {
+    --ink: CanvasText;
+    --maple: Canvas;
+    --surface-raised: Canvas;
+    --surface-sunken: Canvas;
+    --line: CanvasText;
+
+    forced-color-adjust: none;
+  }
+}
+
 ul {
   display: flex;
   flex-wrap: wrap;

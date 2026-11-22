@@ -142,4 +142,22 @@ test.describe('the Cutting Plan', () => {
     expect(offsets.length).toBeGreaterThan(4);
     expect(Math.max(...offsets)).toBeLessThan(1);
   });
+
+  test('keeps Kerf, Trim and Waste visible however short they are', async ({ page }) => {
+    await page.goto('/cut-optimizer');
+    await generateCuttingPlan(page);
+    await expect(page.locator('article wt-stock-bar').first()).toBeVisible();
+
+    const narrowest = (kind: string): Promise<number> =>
+      page
+        .locator(`article wt-stock-bar [data-kind="${kind}"]`)
+        .evaluateAll((segments) =>
+          Math.min(...segments.map((segment) => segment.getBoundingClientRect().width)),
+        );
+
+    // A 3 mm Kerf, 5 mm Trim and a few mm of Waste are well under a pixel per mm of their Stock.
+    expect(await narrowest('kerf')).toBeGreaterThanOrEqual(2);
+    expect(await narrowest('trim')).toBeGreaterThanOrEqual(5);
+    expect(await narrowest('waste')).toBeGreaterThanOrEqual(4);
+  });
 });

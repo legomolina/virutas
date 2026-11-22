@@ -116,7 +116,15 @@ describe('StockBar', () => {
   it('keeps Trim, Kerf and Waste as unlabelled segments of their own', async () => {
     const { root } = await render(WITH_SHORT_PART);
 
-    expect(drawn(root).filter(([kind]) => kind === 'waste')).toEqual([['waste', '8', '']]);
+    expect(drawn(root).filter(([kind]) => kind !== 'part')).toEqual([
+      ['trim', '5', ''],
+      ['kerf', '3', ''],
+      ['kerf', '3', ''],
+      ['kerf', '3', ''],
+      ['kerf', '3', ''],
+      ['waste', '8', ''],
+      ['trim', '5', ''],
+    ]);
   });
 
   it('moves the number of a Part under 2 % of the Stock under the bar, at its middle', async () => {

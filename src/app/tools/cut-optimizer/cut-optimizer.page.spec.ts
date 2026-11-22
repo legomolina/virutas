@@ -1183,6 +1183,21 @@ describe('CutOptimizerPage', () => {
       expect(layouts(fixture)[0]).toContain('spacer 30 mm');
     });
 
+    it('keeps drawing the Trim the plan was generated with when the Trim changes', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, [['2400', '']], [['leg', '720', '1']]);
+      await type(fixture, field(jobSettings(fixture), 'Trim at each end'), '5');
+      await press(fixture, generateButton(fixture));
+
+      await type(fixture, field(jobSettings(fixture), 'Trim at each end'), '10');
+
+      expect(bars(fixture)[0].filter(([kind]) => kind === 'trim')).toEqual([
+        ['trim', '5', ''],
+        ['trim', '5', ''],
+      ]);
+    });
+
     it('explains the bars once, above the layouts', async () => {
       const fixture = render();
       await fixture.whenStable();

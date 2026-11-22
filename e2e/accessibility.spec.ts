@@ -30,7 +30,11 @@ const PAGE_STATES: readonly {
     heading: 'Cut Optimizer',
     prepare: async (page) => {
       await generateCuttingPlan(page);
-      await expect(page.locator('wt-stock-bar').first()).toBeVisible();
+      // Every kind of segment, and the marker of a very short Part, is on the page.
+      for (const kind of ['part', 'kerf', 'trim', 'offcut', 'waste']) {
+        await expect(page.locator(`wt-stock-bar [data-kind="${kind}"]`).first()).toBeVisible();
+      }
+      await expect(page.locator('wt-stock-bar [data-marker]').first()).toBeVisible();
     },
   },
 ];
