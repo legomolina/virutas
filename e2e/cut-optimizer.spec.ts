@@ -1,3 +1,4 @@
+import type { Locator } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 import { generateCuttingPlan } from './cutting-plan';
 
@@ -316,7 +317,8 @@ test.describe('printing', () => {
 });
 
 /**
- * The whole flow in each language. Both browsers default to the Metric Unit System, so the
+ * The whole flow in each language. en-GB and es-ES both default to the Metric Unit System (unlike
+ * en-US, used elsewhere in this file), so the
  * worked example reads the same in both: 2400 mm Stock as needed, 3 mm Kerf, no Trim and a
  * 300 mm minimum Offcut length (the defaults).
  * - Six 600 mm legs: four take 2400 mm plus 3 Kerfs, too long, so each Stock holds three and
@@ -390,9 +392,9 @@ const FLOW_LANGUAGES = [
   },
 ] as const;
 
-for (const text of FLOW_LANGUAGES) {
-  test.describe(`the whole flow in a ${text.locale} browser`, () => {
-    test.use({ locale: text.locale });
+for (const copy of FLOW_LANGUAGES) {
+  test.describe(`the whole flow in a ${copy.locale} browser`, () => {
+    test.use({ locale: copy.locale });
 
     test('builds a Cutting Plan from the home page and marks it out of date after an edit', async ({
       page,
@@ -400,106 +402,120 @@ for (const text of FLOW_LANGUAGES) {
       await page.goto('/');
       await page
         .getByRole('main')
-        .getByRole('link', { name: new RegExp(text.tool, 'u') })
+        .getByRole('link', { name: new RegExp(copy.tool, 'u') })
         .click();
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText(text.tool);
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(copy.tool);
 
       await page
-        .getByRole('region', { name: text.stock, exact: true })
-        .getByRole('group', { name: text.stockEntry })
-        .getByLabel(text.length)
+        .getByRole('region', { name: copy.stock, exact: true })
+        .getByRole('group', { name: copy.stockEntry })
+        .getByLabel(copy.length)
         .fill('2400 mm');
-      const cutList = page.getByRole('region', { name: text.cutList });
-      const legs = cutList.getByRole('group', { name: text.part(1) });
-      await legs.getByLabel(text.name).fill('leg');
-      await legs.getByLabel(text.length).fill('600 mm');
-      await legs.getByLabel(text.quantity).fill('6');
-      await cutList.getByRole('button', { name: text.addPart }).click();
-      const top = cutList.getByRole('group', { name: text.part(2) });
-      await top.getByLabel(text.name).fill('top');
-      await top.getByLabel(text.length).fill('2500 mm');
-      await top.getByLabel(text.quantity).fill('1');
-      await page.getByRole('button', { name: text.generate }).click();
+      const cutList = page.getByRole('region', { name: copy.cutList });
+      const legs = cutList.getByRole('group', { name: copy.part(1) });
+      await legs.getByLabel(copy.name).fill('leg');
+      await legs.getByLabel(copy.length).fill('600 mm');
+      await legs.getByLabel(copy.quantity).fill('6');
+      await cutList.getByRole('button', { name: copy.addPart }).click();
+      const top = cutList.getByRole('group', { name: copy.part(2) });
+      await top.getByLabel(copy.name).fill('top');
+      await top.getByLabel(copy.length).fill('2500 mm');
+      await top.getByLabel(copy.quantity).fill('1');
+      await page.getByRole('button', { name: copy.generate }).click();
 
-      const summary = page.getByRole('group', { name: text.plan });
+      const summary = page.getByRole('group', { name: copy.plan });
       await expect(summary).toBeFocused();
-      await expect(summary.locator('dt, dd')).toHaveText([...text.summary]);
-      const plan = page.getByRole('region', { name: text.plan });
+      await expect(summary.locator('dt, dd')).toHaveText([...copy.summary]);
+      const plan = page.getByRole('region', { name: copy.plan });
       await expect(
-        plan.getByRole('region', { name: text.unplaced }).getByRole('listitem'),
-      ).toHaveText(text.unplacedPart, { useInnerText: true });
+        plan.getByRole('region', { name: copy.unplaced }).getByRole('listitem'),
+      ).toHaveText(copy.unplacedPart, { useInnerText: true });
 
-      const layouts = plan.getByRole('region', { name: text.layouts });
+      const layouts = plan.getByRole('region', { name: copy.layouts });
       const headings = layouts.getByRole('heading', { level: 4 });
-      await expect(headings).toHaveText([text.group]);
-      await layouts.getByRole('checkbox', { name: text.showEveryStock }).check();
-      await expect(headings).toHaveText([...text.everyStock]);
+      await expect(headings).toHaveText([copy.group]);
+      await layouts.getByRole('checkbox', { name: copy.showEveryStock }).check();
+      await expect(headings).toHaveText([...copy.everyStock]);
 
-      await expect(plan.getByText(text.outOfDate, { exact: true })).toHaveCount(0);
-      await legs.getByLabel(text.quantity).fill('5');
+      await expect(plan.getByText(copy.outOfDate, { exact: true })).toHaveCount(0);
+      await legs.getByLabel(copy.quantity).fill('5');
 
-      await expect(plan.getByText(text.outOfDate, { exact: true })).toBeVisible();
-      await expect(headings).toHaveText([...text.everyStock]);
+      await expect(plan.getByText(copy.outOfDate, { exact: true })).toBeVisible();
+      await expect(headings).toHaveText([...copy.everyStock]);
     });
   });
 }
 
-test('a keyboard-only run adds a Stock and a Part and generates the Cutting Plan', async ({
-  page,
-}) => {
-  await page.goto('/cut-optimizer');
-  const stock = page.getByRole('region', { name: 'Stock', exact: true });
-  const cutList = page.getByRole('region', { name: 'Cut List' });
-  // The keyboard starts at the first field of the page.
-  await stock.getByRole('group', { name: 'Stock 1' }).getByLabel('Length').focus();
-  await page.keyboard.type('2400 mm');
+test.describe('from the keyboard alone', () => {
+  // Metric, so the Stock lengths read in millimetres.
+  test.use({ locale: 'en-GB' });
 
-  await page.keyboard.press('Tab'); // Quantity
-  await page.keyboard.press('Tab'); // Remove Stock 1
-  await page.keyboard.press('Tab');
-  await expect(stock.getByRole('button', { name: 'Add Stock' })).toBeFocused();
-  await page.keyboard.press('Enter');
-  const stock2 = stock.getByRole('group', { name: 'Stock 2' });
-  await expect(stock2.getByLabel('Length')).toBeFocused();
-  await page.keyboard.type('1000 mm');
-  await page.keyboard.press('Tab');
-  await page.keyboard.type('1');
+  test('a keyboard-only run adds a Stock and a Part and generates the Cutting Plan', async ({
+    page,
+  }) => {
+    await page.goto('/cut-optimizer');
+    const stock = page.getByRole('region', { name: 'Stock', exact: true });
+    const stock1 = stock.getByRole('group', { name: 'Stock 1' });
+    const stock2 = stock.getByRole('group', { name: 'Stock 2' });
+    const cutList = page.getByRole('region', { name: 'Cut List' });
+    const part1 = cutList.getByRole('group', { name: 'Part 1' });
+    const part2 = cutList.getByRole('group', { name: 'Part 2' });
+    const jobSettings = page.getByRole('region', { name: 'Job settings' });
+    const generate = page.getByRole('button', { name: 'Generate Cutting Plan' });
+    /** Presses Tab and checks it lands on `next`, so every stop of the Tab order is pinned. */
+    const tabTo = async (next: Locator): Promise<void> => {
+      await page.keyboard.press('Tab');
+      await expect(next).toBeFocused();
+    };
+    // The keyboard starts at the first field of the page.
+    await stock1.getByLabel('Length').focus();
+    await page.keyboard.type('2400 mm');
+    await tabTo(stock1.getByLabel('Quantity'));
+    await tabTo(stock1.getByRole('button', { name: 'Remove Stock 1' }));
+    await tabTo(stock.getByRole('button', { name: 'Add Stock' }));
+    await page.keyboard.press('Enter');
+    await expect(stock2.getByLabel('Length')).toBeFocused();
+    await page.keyboard.type('1000 mm');
+    await tabTo(stock2.getByLabel('Quantity'));
+    await page.keyboard.type('1');
+    await tabTo(stock2.getByRole('button', { name: 'Remove Stock 2' }));
+    await tabTo(stock.getByRole('button', { name: 'Add Stock' }));
+    await tabTo(part1.getByLabel('Name (optional)'));
+    await page.keyboard.type('leg');
+    await tabTo(part1.getByLabel('Length'));
+    await page.keyboard.type('600 mm');
+    await tabTo(part1.getByLabel('Quantity'));
+    await page.keyboard.type('3');
+    await tabTo(part1.getByRole('button', { name: 'Remove Part 1' }));
+    await tabTo(cutList.getByRole('button', { name: 'Add Part' }));
+    await page.keyboard.press('Enter');
+    await expect(part2.getByLabel('Name (optional)')).toBeFocused();
+    await page.keyboard.type('rail');
+    await tabTo(part2.getByLabel('Length'));
+    await page.keyboard.type('900 mm');
+    await tabTo(part2.getByLabel('Quantity'));
+    await page.keyboard.type('1');
+    // A disabled button is left out of the Tab order: the input is complete only now.
+    await expect(generate).toBeEnabled();
+    await tabTo(part2.getByRole('button', { name: 'Remove Part 2' }));
+    await tabTo(cutList.getByRole('button', { name: 'Add Part' }));
+    await tabTo(jobSettings.getByRole('link', { name: 'Change your defaults in Settings' }));
+    await tabTo(jobSettings.getByLabel('Kerf'));
+    await tabTo(jobSettings.getByLabel('Trim at each end'));
+    await tabTo(jobSettings.getByLabel('Minimum Offcut Length'));
+    await tabTo(jobSettings.getByLabel('Strategy'));
+    await tabTo(generate);
 
-  await page.keyboard.press('Tab'); // Remove Stock 2
-  await page.keyboard.press('Tab'); // Add Stock
-  await page.keyboard.press('Tab');
-  const part1 = cutList.getByRole('group', { name: 'Part 1' });
-  await expect(part1.getByLabel('Name (optional)')).toBeFocused();
-  await page.keyboard.type('leg');
-  await page.keyboard.press('Tab');
-  await page.keyboard.type('600 mm');
-  await page.keyboard.press('Tab');
-  await page.keyboard.type('3');
-  await page.keyboard.press('Tab'); // Remove Part 1
-  await page.keyboard.press('Tab');
-  await expect(cutList.getByRole('button', { name: 'Add Part' })).toBeFocused();
-  await page.keyboard.press('Enter');
-  const part2 = cutList.getByRole('group', { name: 'Part 2' });
-  await expect(part2.getByLabel('Name (optional)')).toBeFocused();
-  await page.keyboard.type('rail');
-  await page.keyboard.press('Tab');
-  await page.keyboard.type('900 mm');
-  await page.keyboard.press('Tab');
-  await page.keyboard.type('1');
+    await page.keyboard.press('Enter');
 
-  // A disabled button is left out of the Tab order: the input is complete only now.
-  const generate = page.getByRole('button', { name: 'Generate Cutting Plan' });
-  await expect(generate).toBeEnabled();
-  // Past Remove Part 2, Add Part, the defaults link, Kerf, Trim, Minimum Offcut Length, Strategy.
-  for (const key of Array.from({ length: 8 }, () => 'Tab')) {
-    await page.keyboard.press(key);
-  }
-  await expect(generate).toBeFocused();
-  await page.keyboard.press('Enter');
-
-  const summary = page.getByRole('group', { name: 'Cutting Plan' });
-  await expect(summary).toBeFocused();
-  await expect(summary).toContainText('2 in total');
+    // Three 600 mm legs and a 900 mm rail need two Stock; 2400 mm and the added 1000 mm Stock
+    // are less total Stock length than two of 2400 mm.
+    const summary = page.getByRole('group', { name: 'Cutting Plan' });
+    await expect(summary).toBeFocused();
+    await expect(summary).toContainText('2 in total');
+    await expect(summary).toContainText('1 × 1000 mm');
+    await expect(summary).toContainText('1 × 2400 mm');
+  });
 });
 
 test('the job and its Cutting Plan are still there after visiting the home page and coming back', async ({
