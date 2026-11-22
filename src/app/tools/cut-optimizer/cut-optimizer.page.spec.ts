@@ -1333,15 +1333,17 @@ describe('CutOptimizerPage', () => {
       const second = TestBed.createComponent(CutOptimizerPage);
       await second.whenStable();
       await press(second, button(root(second), 'Add Stock'));
+      await type(second, field(stockEntry(second, 'Stock 2'), 'Length'), '1200');
       await press(second, button(root(second), 'Add Part'));
+      await type(second, field(part(second, 'Part 2'), 'Name (optional)'), 'rail');
 
       expect(shownStock(second)).toEqual([
         ['Stock 1', '2400', ''],
-        ['Stock 2', '', ''],
+        ['Stock 2', '1200', ''],
       ]);
       expect(shownParts(second)).toEqual([
         ['Part 1', 'leg', '720', '6'],
-        ['Part 2', '', '', ''],
+        ['Part 2', 'rail', '', ''],
       ]);
     });
   });
