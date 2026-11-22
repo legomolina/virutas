@@ -66,6 +66,8 @@
   },
   "generate": {
     "action": "Generate Cutting Plan",
+    "building": "Building the Cutting Plan…",
+    "failed": "The Cutting Plan could not be built. Try again.",
     "placeholder": "Your Cutting Plan appears here once you generate it.",
     "blocked": {
       "invalidFields": "Fix the fields marked above to generate the Cutting Plan.",
@@ -99,7 +101,9 @@
     },
     "layouts": {
       "title": "Layouts",
-      "heading": "{{ count }}× Stock {{ length }}",
+      "showEveryStock": "Show every Stock",
+      "groupHeading": "{{ count }}× Stock {{ length }}",
+      "stockHeading": "Stock {{ position }} of {{ total }} · {{ length }}",
       "cutOrder": "Cut order",
       "cuts": "Cuts",
       "trim": "Trim",

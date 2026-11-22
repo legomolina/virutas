@@ -4,6 +4,7 @@ import {
   computed,
   inject,
   Injector,
+  PendingTasks,
   signal,
   viewChild,
 } from '@angular/core';
@@ -19,8 +20,8 @@ import { StockSection } from './components/stock-section/stock-section';
 import type { TypedCutListEntry } from './cut-list-entry.calc';
 import { emptyCutListEntry } from './cut-list-entry.calc';
 import type { CutOptimizerInput, CuttingPlan, StrategyId } from './cut-optimizer.calc';
-import { planCuts } from './cut-optimizer.calc';
 import { readCuttingPlanRequest } from './cutting-plan-request.calc';
+import { CUTTING_PLANNER } from './cutting-planner';
 import { editableLength } from './editable-length';
 import type { JobSettingsTexts } from './job-settings.calc';
 import type { TypedStockEntry } from './stock-entry.calc';
@@ -64,6 +65,8 @@ interface GeneratedPlan {
 export default class CutOptimizerPage {
   protected readonly settings = inject(SettingsStore);
   private readonly injector = inject(Injector);
+  private readonly pendingTasks = inject(PendingTasks);
+  private readonly planner = inject(CUTTING_PLANNER);
 
   private readonly cuttingPlan = viewChild(CuttingPlanView);
 
@@ -139,17 +142,48 @@ export default class CutOptimizerPage {
     return generated !== undefined && generated.inputSnapshot !== this.inputSnapshot();
   });
 
-  /** Builds the Cutting Plan from the current input and moves focus to its summary. */
-  protected generate(): void {
+  /**
+   * Where generating stands: `building` while a Cutting Plan is built (it cannot be generated
+   * again meanwhile), `failed` when the last one could not be built.
+   */
+  protected readonly generation = signal<'idle' | 'building' | 'failed'>('idle');
+
+  /** The messages that explain the Generate action: why it is blocked, or that it failed. */
+  protected readonly generateDescription = computed(() => {
+    const ids = [
+      ...(this.request().ok ? [] : ['generate-blocked']),
+      ...(this.generation() === 'failed' ? ['generate-failed'] : []),
+    ];
+    return ids.length > 0 ? ids.join(' ') : null;
+  });
+
+  /**
+   * Builds the Cutting Plan from the current input and moves focus to its summary. The plan is
+   * a pending task, so the page is not stable until it arrives. When it cannot be built, the
+   * previous plan is dropped, since it no longer matches what was asked for. The input is noted
+   * before building, so a change made meanwhile marks the new plan out of date.
+   */
+  protected async generate(): Promise<void> {
     const request = this.request();
-    if (!request.ok) {
+    if (!request.ok || this.generation() === 'building') {
       return;
     }
-    this.generated.set({
-      plan: planCuts(request.input),
-      input: request.input,
-      inputSnapshot: this.inputSnapshot(),
-    });
-    afterNextRender(() => this.cuttingPlan()?.focusSummary(), { injector: this.injector });
+    const inputSnapshot = this.inputSnapshot();
+    this.generation.set('building');
+    const done = this.pendingTasks.add();
+    try {
+      this.generated.set({
+        plan: await this.planner(request.input),
+        input: request.input,
+        inputSnapshot,
+      });
+      this.generation.set('idle');
+      afterNextRender(() => this.cuttingPlan()?.focusSummary(), { injector: this.injector });
+    } catch {
+      this.generated.set(undefined);
+      this.generation.set('failed');
+    } finally {
+      done();
+    }
   }
 }

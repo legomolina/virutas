@@ -6,6 +6,10 @@ Add an entry whenever you add, change or remove a guardrail, or when one catches
 
 Add new entries at the top, in the same shape: a date, then **What happened**, **Root cause** and **Guardrail**. Keep it a list, not a table: Prettier re-aligns a whole table whenever a row widens it, so parallel branches conflict on every line.
 
+- **2026-11-22**
+  - **What happened:** No incident: set when the Cut Optimizer started running its engine in a Web Worker (#110).
+  - **Root cause:** Worker files need the `webworker` library instead of the DOM one, so `tsconfig.app.json` excludes `src/**/*.worker.ts`, and `pnpm typecheck` would have stopped checking them.
+  - **Guardrail:** `tsconfig.worker.json` covers `src/**/*.worker.ts` (also `webWorkerTsConfig` in `angular.json`), and `pnpm typecheck` runs it alongside the app, spec and e2e configs.
 - **2026-11-18**
   - **What happened:** PR #127 conflicted after #126 merged. The agent rebased the branch onto `origin/main`, which needs `git push --force-with-lease`; the `git push --force *` deny rule and the auto-mode classifier refused it, and the owner had to push by hand. It was not the first time.
   - **Root cause:** Nothing said how to update a branch that is already on GitHub, and `/implement` told agents to rebase when behind, whether or not the branch had been pushed.
