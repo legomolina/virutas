@@ -119,6 +119,15 @@ ul span {
   font: var(--text-value);
 }
 
+/* The Layouts heading with the "Show every Stock" toggle beside it, wrapping below on narrow screens. */
+#layouts-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-6);
+  align-items: center;
+  justify-content: space-between;
+}
+
 article {
   display: flex;
   flex-direction: column;
