@@ -77,6 +77,7 @@
   },
   "plan": {
     "title": "Cutting Plan",
+    "print": "Print Cutting Plan",
     "stockUsed": {
       "label": "Stock used",
       "total": "{{ count }} in total",

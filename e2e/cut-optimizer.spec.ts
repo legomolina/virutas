@@ -163,6 +163,8 @@ test.describe('the Cutting Plan', () => {
     await expect(headings).toHaveCount(1);
 
     await page.keyboard.press('Tab');
+    await expect(page.getByRole('button', { name: 'Print Cutting Plan' })).toBeFocused();
+    await page.keyboard.press('Tab');
     await expect(toggle).toBeFocused();
     await page.keyboard.press('Space');
 
@@ -223,6 +225,70 @@ test.describe('the Cutting Plan', () => {
     expect(await narrowest('kerf')).toBeGreaterThanOrEqual(2);
     expect(await narrowest('trim')).toBeGreaterThanOrEqual(5);
     expect(await narrowest('waste')).toBeGreaterThanOrEqual(4);
+  });
+});
+
+test.describe('printing', () => {
+  test.use({ colorScheme: 'dark' });
+
+  test('prints only the Cutting Plan, in ink on white paper, even when it is out of date', async ({
+    page,
+  }) => {
+    await page.goto('/cut-optimizer');
+    // One Stock: a rail fits, the second rail runs out of Stock and the top is too long.
+    const stock1 = page
+      .getByRole('region', { name: 'Stock' })
+      .getByRole('group', { name: 'Stock 1' });
+    await stock1.getByLabel('Length').fill('1800 mm');
+    await stock1.getByLabel('Quantity').fill('1');
+    const cutList = page.getByRole('region', { name: 'Cut List' });
+    const rails = cutList.getByRole('group', { name: 'Part 1' });
+    await rails.getByLabel('Name (optional)').fill('rail');
+    await rails.getByLabel('Length').fill('1000 mm');
+    await rails.getByLabel('Quantity').fill('2');
+    await cutList.getByRole('button', { name: 'Add Part' }).click();
+    const top = cutList.getByRole('group', { name: 'Part 2' });
+    await top.getByLabel('Name (optional)').fill('top');
+    await top.getByLabel('Length').fill('2000 mm');
+    await top.getByLabel('Quantity').fill('1');
+    await page.getByRole('button', { name: 'Generate Cutting Plan' }).click();
+    const plan = page.getByRole('region', { name: 'Cutting Plan' });
+    await expect(plan).toBeVisible();
+    await stock1.getByLabel('Quantity').fill('2');
+    const masthead = page.getByText('Woodworking Tools · Cut Optimizer', { exact: true });
+    await expect(masthead).toBeHidden();
+
+    await page.emulateMedia({ media: 'print' });
+
+    await expect(masthead).toBeVisible();
+    await expect(plan).toBeVisible();
+    await expect(plan.getByText('Out of date.')).toBeVisible();
+    await expect(plan.getByRole('region', { name: 'Unplaced Parts (2)' })).toBeVisible();
+    await expect(
+      plan.getByRole('region', { name: 'Layouts' }).locator('wt-stock-bar'),
+    ).toBeVisible();
+    for (const hidden of [
+      page.getByRole('banner'),
+      page.getByRole('contentinfo'),
+      page.getByRole('heading', { level: 1 }),
+      page.getByText('Plan how to cut your Parts out of your Stock with the least Waste.'),
+      page.getByRole('region', { name: 'Stock', exact: true }),
+      page.getByRole('region', { name: 'Cut List' }),
+      page.getByRole('region', { name: 'Job settings' }),
+      page.getByRole('button', { name: 'Generate Cutting Plan' }),
+      page.getByRole('button', { name: 'Print Cutting Plan' }),
+      page.getByRole('checkbox', { name: 'Show every Stock' }),
+    ]) {
+      await expect(hidden).toBeHidden();
+    }
+    // The light theme's ink, never the dark theme's light text, which white paper would hide.
+    await expect(plan.getByRole('heading', { level: 2 })).toHaveCSS('color', 'rgb(42, 32, 23)');
+
+    await page.emulateMedia({ media: 'screen' });
+
+    await expect(masthead).toBeHidden();
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(plan.getByRole('heading', { level: 2 })).toHaveCSS('color', 'rgb(243, 235, 224)');
   });
 });
 

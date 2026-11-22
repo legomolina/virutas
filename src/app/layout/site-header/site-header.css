@@ -157,3 +157,10 @@ hr {
     display: none;
   }
 }
+
+/* Paper carries only the page content: the shell stays on screen. */
+@media print {
+  :host {
+    display: none;
+  }
+}

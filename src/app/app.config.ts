@@ -4,12 +4,14 @@ import { provideRouter, TitleStrategy } from '@angular/router';
 import { routes } from './app.routes';
 import { provideI18n } from './core/i18n/provide-i18n';
 import { TranslatedTitleStrategy } from './core/i18n/translated-title-strategy';
+import { provideLightPrint } from './core/print/provide-light-print';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
     provideI18n(),
+    provideLightPrint(),
     { provide: TitleStrategy, useClass: TranslatedTitleStrategy },
   ],
 };

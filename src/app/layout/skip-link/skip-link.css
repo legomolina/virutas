@@ -32,3 +32,10 @@ a:not(:focus) {
 
   clip-path: inset(50%);
 }
+
+/* Paper carries only the page content: the shell stays on screen. */
+@media print {
+  :host {
+    display: none;
+  }
+}
