@@ -2,7 +2,10 @@ import { Component, computed, input, model } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import type { UnitSystem } from '../../../../shared/measurement/unit-system';
+import { SelectField } from '../../../../shared/ui/select-field/select-field';
 import { TextField } from '../../../../shared/ui/text-field/text-field';
+import type { StrategyId } from '../../cut-optimizer.calc';
+import { isStrategyId } from '../../cut-optimizer.calc';
 import type { JobSetting, JobSettingsTexts } from '../../job-settings.calc';
 import { readJobSettings } from '../../job-settings.calc';
 
@@ -13,7 +16,7 @@ import { readJobSettings } from '../../job-settings.calc';
  */
 @Component({
   selector: 'wt-job-settings-section',
-  imports: [RouterLink, TranslocoPipe, TextField],
+  imports: [RouterLink, TranslocoPipe, TextField, SelectField],
   templateUrl: './job-settings-section.html',
   styleUrl: './job-settings-section.css',
 })
@@ -36,7 +39,16 @@ export class JobSettingsSection {
     () => readJobSettings(this.texts(), this.unitSystem()).errors,
   );
 
+  /** The Strategy the Cutting Plan is built with. */
+  readonly strategy = model.required<StrategyId>();
+
   protected edit(setting: JobSetting, text: string): void {
     this.edits.update((edits) => ({ ...edits, [setting]: text }));
+  }
+
+  protected choose(strategy: string): void {
+    if (isStrategyId(strategy)) {
+      this.strategy.set(strategy);
+    }
   }
 }

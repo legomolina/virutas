@@ -13,3 +13,22 @@ hgroup {
 p {
   color: var(--ink-muted);
 }
+
+/* Generate, with why it is disabled. */
+div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+#generate-blocked {
+  font: var(--text-caption);
+}
+
+#plan-placeholder {
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  font: var(--text-caption);
+  background-color: var(--surface-sunken);
+}

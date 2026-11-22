@@ -1,5 +1,6 @@
 import {
   groupLayouts,
+  isStrategyId,
   planCuts,
   type CutOptimizerInput,
   type CuttingPlan,
@@ -914,5 +915,15 @@ describe('planCuts', () => {
       expect(totals.offcutLengthsMillimetres).toEqual([497, 397]);
       expect(totals.wasteMillimetres).toBe(6);
     });
+  });
+});
+
+describe('isStrategyId', () => {
+  it('accepts the fewest Stock Strategy', () => {
+    expect(isStrategyId('fewest-stock')).toBe(true);
+  });
+
+  it.each(['fewer-cuts', '', 'toString', 'constructor'])('rejects %j', (value) => {
+    expect(isStrategyId(value)).toBe(false);
   });
 });

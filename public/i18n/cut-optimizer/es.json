@@ -57,6 +57,58 @@
       "empty": "Escribe una longitud, o 0 para ninguna.",
       "unreadable": "No se puede leer esa longitud. Prueba con algo como 5 mm, 1/8\" o 0.",
       "negative": "Una longitud no puede ser negativa. Usa 0 o más."
+    },
+    "strategy": {
+      "label": "Estrategia",
+      "hint": "Usa el menor número de materiales posible, después la menor longitud total de material y después conserva los retales más largos.",
+      "fewestStock": "Menos material"
+    }
+  },
+  "generate": {
+    "action": "Generar plan de corte",
+    "placeholder": "Tu plan de corte aparecerá aquí cuando lo generes.",
+    "blocked": {
+      "invalidFields": "Corrige los campos marcados arriba para generar el plan de corte.",
+      "incompleteEntries": "Rellena la longitud de cada material y la longitud y la cantidad de cada pieza, o quita los que no necesites.",
+      "missingEntries": "Añade al menos un material y una pieza para generar el plan de corte."
+    }
+  },
+  "plan": {
+    "title": "Plan de corte",
+    "stockUsed": {
+      "label": "Material usado",
+      "total": "{{ count }} en total",
+      "line": "{{ count }} × {{ length }}"
+    },
+    "waste": {
+      "label": "Desperdicio",
+      "hint": "Suma de sobrantes desperdiciados, saneado y grosor de corte."
+    },
+    "offcuts": {
+      "label": "Retales para guardar",
+      "none": "Ninguno"
+    },
+    "settingsUsed": "Grosor de corte {{ kerf }} · Saneado {{ trim }} en cada extremo · Longitud mínima de retal {{ minimumOffcutLength }} · Estrategia: {{ strategy }}",
+    "unplaced": {
+      "title": "Piezas sin colocar ({{ count }})",
+      "description": "Estas piezas faltan en el plan de corte. La distribución de abajo incluye todas las demás.",
+      "named": "{{ count }}× {{ name }}, {{ length }}",
+      "unnamed": "{{ count }}× {{ length }}",
+      "tooLong": "Más larga que la longitud útil de todo el material ({{ length }} como máximo). Añade material más largo.",
+      "insufficientStock": "No hay material suficiente: el material limitado en el que cabe se ha agotado y ningún material ilimitado sirve. Añade más material."
+    },
+    "layouts": {
+      "title": "Distribución por material",
+      "heading": "{{ count }}× material de {{ length }}",
+      "cutOrder": "Orden de corte",
+      "cuts": "Cortes",
+      "trim": "Saneado",
+      "trimAtEachEnd": "{{ length }} en cada extremo",
+      "none": "Ninguno",
+      "leftover": "Sobrante",
+      "offcut": "Retal de {{ length }}, guárdalo",
+      "waste": "Desperdicio de {{ length }}",
+      "leftoverNone": "Ninguno, las piezas ocupan todo el material"
     }
   }
 }
