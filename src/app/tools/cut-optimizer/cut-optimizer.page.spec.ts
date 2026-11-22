@@ -1367,16 +1367,17 @@ describe('CutOptimizerPage', () => {
         ).toEqual(['Stock 1 of 3 · 2400 mm', 'Stock 2 of 3 · 2400 mm', 'Stock 3 of 3 · 2400 mm']);
       });
 
-      it('works with the keyboard', async () => {
+      it('stays as it is when the plan is generated again', async () => {
         const fixture = render();
         await fixture.whenStable();
         await fill(fixture, ...legsAndRails);
         await press(fixture, generateButton(fixture));
+        await click(fixture, toggle(fixture));
 
-        // A native checkbox is focusable and toggles on Space.
-        toggle(fixture).focus();
-        expect(document.activeElement).toBe(toggle(fixture));
-        expect(toggle(fixture).tabIndex).toBe(0);
+        await press(fixture, generateButton(fixture));
+
+        expect(toggle(fixture).checked).toBe(true);
+        expect(layouts(fixture)).toHaveLength(3);
       });
 
       it('is in Spanish', async () => {

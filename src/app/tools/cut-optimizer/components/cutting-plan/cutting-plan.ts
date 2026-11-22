@@ -21,6 +21,15 @@ interface LayoutText {
   readonly leftover: { readonly kind: StockLayout['leftover']['kind']; readonly length: string };
 }
 
+/** A layout as listed: a group of identical Stock, or one Stock when every Stock is shown. */
+interface ListedLayout extends LayoutText {
+  readonly stockLength: string;
+  /** How many identical Stock it stands for: 1 when every Stock is shown. */
+  readonly count: number;
+  /** Its place among every Stock in the plan, counted from 1; absent while grouped. */
+  readonly position?: number;
+}
+
 /** The translation key of each Strategy's name. */
 const STRATEGY_NAMES: Readonly<Record<StrategyId, string>> = {
   'fewest-stock': 'cutOptimizer.jobSettings.strategy.fewestStock',
@@ -93,23 +102,17 @@ export class CuttingPlanView {
         })),
       })),
       longestUsable: show(longestUsableLength(this.input())),
+      /** Grouped: each with its `count`. Every Stock: one each, with its `position` in the plan. */
       layouts: this.everyStock()
-        ? expandGroups(plan.groups).map(({ layout, position }) => ({
-            heading: {
-              key: 'cutOptimizer.plan.layouts.headingOne',
-              params: {
-                position,
-                total: plan.layouts.length,
-                length: show(layout.stockLengthMillimetres),
-              },
-            },
+        ? expandGroups(plan.groups).map(({ layout, position }): ListedLayout => ({
+            count: 1,
+            position,
+            stockLength: show(layout.stockLengthMillimetres),
             ...describeLayout(layout),
           }))
-        : plan.groups.map(({ layout, count }) => ({
-            heading: {
-              key: 'cutOptimizer.plan.layouts.heading',
-              params: { count, length: show(layout.stockLengthMillimetres) },
-            },
+        : plan.groups.map(({ layout, count }): ListedLayout => ({
+            count,
+            stockLength: show(layout.stockLengthMillimetres),
             ...describeLayout(layout),
           })),
     };

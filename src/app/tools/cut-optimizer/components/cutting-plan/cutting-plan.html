@@ -97,7 +97,22 @@
       @for (layout of plan.layouts; track $index; let n = $index) {
         <article [attr.aria-labelledby]="'layout-' + n + '-title'">
           <h4 [id]="'layout-' + n + '-title'">
-            {{ layout.heading.key | transloco: layout.heading.params }}
+            @if (layout.position === undefined) {
+              {{
+                'cutOptimizer.plan.layouts.heading'
+                  | transloco: { count: layout.count, length: layout.stockLength }
+              }}
+            } @else {
+              {{
+                'cutOptimizer.plan.layouts.headingOne'
+                  | transloco
+                    : {
+                        position: layout.position,
+                        total: plan.stockTotal,
+                        length: layout.stockLength,
+                      }
+              }}
+            }
           </h4>
 
           <p [id]="'layout-' + n + '-cut-order'">
