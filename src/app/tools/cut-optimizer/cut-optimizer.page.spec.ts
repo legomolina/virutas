@@ -1919,4 +1919,108 @@ describe('CutOptimizerPage', () => {
       });
     });
   });
+
+  describe('coming back during the session', () => {
+    /** Three Stock: two of three legs, one with the shelf. */
+    const legsAndShelfInput = [
+      [['2400', '']],
+      [
+        ['leg', '720', '6'],
+        ['shelf', '2000', '1'],
+      ],
+    ] as const;
+
+    /** The mark by the Cutting Plan's heading: "Out of date", or empty. */
+    function outOfDateMark(fixture: ComponentFixture<CutOptimizerPage>): string {
+      return textOf(plan(fixture).querySelector('#plan-out-of-date'));
+    }
+
+    it('shows the Stock, the Cut List, the job settings and the Cutting Plan again', async () => {
+      const first = render();
+      await first.whenStable();
+      await fill(first, ...legsAndShelfInput);
+      await type(first, field(jobSettings(first), 'Trim at each end'), '10 mm');
+      await press(first, generateButton(first));
+      first.destroy();
+
+      const second = TestBed.createComponent(CutOptimizerPage);
+      await second.whenStable();
+
+      expect(shownStock(second)).toEqual([['Stock 1', '2400', '']]);
+      expect(shownParts(second)).toEqual([
+        ['Part 1', 'leg', '720', '6'],
+        ['Part 2', 'shelf', '2000', '1'],
+      ]);
+      expect(shownJobSettings(second)).toEqual(['3 mm', '10 mm', '300 mm']);
+      expect(totals(second)[0]).toEqual(['Stock used', '3 in total', '3 × 2400 mm']);
+    });
+
+    it('shows the Cutting Plan with the settings it was generated from, not the new defaults', async () => {
+      const first = render();
+      await first.whenStable();
+      await fill(first, ...legsAndShelfInput);
+      await press(first, generateButton(first));
+      first.destroy();
+      TestBed.inject(SettingsStore).setCutOptimizerKerf(2);
+
+      const second = TestBed.createComponent(CutOptimizerPage);
+      await second.whenStable();
+
+      expect(shownJobSettings(second)).toEqual(['2 mm', '0 mm', '300 mm']);
+      expect(textOf(plan(second).querySelector('#plan-settings'))).toBe(
+        'Kerf 3 mm · Trim 0 mm at each end · Minimum Offcut Length 300 mm · Strategy: Fewest Stock',
+      );
+      expect(outOfDateMark(second)).toBe('Out of date');
+    });
+
+    it('shows an untouched Cutting Plan as up to date', async () => {
+      const first = render();
+      await first.whenStable();
+      await fill(first, ...legsAndShelfInput);
+      await press(first, generateButton(first));
+      first.destroy();
+
+      const second = TestBed.createComponent(CutOptimizerPage);
+      await second.whenStable();
+
+      expect(outOfDateMark(second)).toBe('');
+    });
+
+    it('still shows the Cutting Plan as out of date when the input changed before leaving', async () => {
+      const first = render();
+      await first.whenStable();
+      await fill(first, ...legsAndShelfInput);
+      await press(first, generateButton(first));
+      await type(first, field(part(first, 'Part 1'), 'Quantity'), '4');
+      first.destroy();
+
+      const second = TestBed.createComponent(CutOptimizerPage);
+      await second.whenStable();
+
+      expect(outOfDateMark(second)).toBe('Out of date');
+    });
+
+    it('keeps adding entries after the ones already there', async () => {
+      const first = render();
+      await first.whenStable();
+      await fill(first, [['2400', '']], [['leg', '720', '6']]);
+      first.destroy();
+
+      const second = TestBed.createComponent(CutOptimizerPage);
+      await second.whenStable();
+      await press(second, button(root(second), 'Add Stock'));
+      await type(second, field(stockEntry(second, 'Stock 2'), 'Length'), '1200');
+      await press(second, button(root(second), 'Add Part'));
+      await type(second, field(part(second, 'Part 2'), 'Name (optional)'), 'rail');
+
+      expect(shownStock(second)).toEqual([
+        ['Stock 1', '2400', ''],
+        ['Stock 2', '1200', ''],
+      ]);
+      expect(shownParts(second)).toEqual([
+        ['Part 1', 'leg', '720', '6'],
+        ['Part 2', 'rail', '', ''],
+      ]);
+    });
+  });
 });

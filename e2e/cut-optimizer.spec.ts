@@ -225,3 +225,45 @@ test.describe('the Cutting Plan', () => {
     expect(await narrowest('waste')).toBeGreaterThanOrEqual(4);
   });
 });
+
+test('the job and its Cutting Plan are still there after visiting the home page and coming back', async ({
+  page,
+}) => {
+  await page.goto('/cut-optimizer');
+  const stock1 = page
+    .getByRole('region', { name: 'Stock' })
+    .getByRole('group', { name: 'Stock 1' });
+  const part1 = page
+    .getByRole('region', { name: 'Cut List' })
+    .getByRole('group', { name: 'Part 1' });
+  const cuttingPlan = page.getByRole('region', { name: 'Cutting Plan' });
+  await stock1.getByLabel('Length').fill('2400 mm');
+  await part1.getByLabel('Name (optional)').fill('leg');
+  await part1.getByLabel('Length').fill('720 mm');
+  await part1.getByLabel('Quantity').fill('3');
+  await page.getByRole('button', { name: 'Generate Cutting Plan' }).click();
+  await expect(cuttingPlan).toBeVisible();
+
+  await page
+    .getByRole('banner')
+    .getByRole('link', { name: /Woodworking Tools/ })
+    .first()
+    .click();
+  await expect(page).toHaveURL('/');
+  await page
+    .getByRole('main')
+    .getByRole('link', { name: /Cut Optimizer/ })
+    .click();
+
+  await expect(stock1.getByLabel('Length')).toHaveValue('2400 mm');
+  await expect(part1.getByLabel('Name (optional)')).toHaveValue('leg');
+  await expect(part1.getByLabel('Quantity')).toHaveValue('3');
+  await expect(cuttingPlan).toBeVisible();
+  await expect(cuttingPlan.getByText('Out of date', { exact: true })).toHaveCount(0);
+
+  await page.reload();
+
+  await expect(stock1.getByLabel('Length')).toHaveValue('');
+  await expect(part1.getByLabel('Name (optional)')).toHaveValue('');
+  await expect(cuttingPlan).toHaveCount(0);
+});
