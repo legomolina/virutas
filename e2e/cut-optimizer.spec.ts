@@ -257,17 +257,8 @@ test.describe('printing', () => {
     await stock1.getByLabel('Quantity').fill('2');
     const masthead = page.getByText('Woodworking Tools · Cut Optimizer', { exact: true });
     await expect(masthead).toBeHidden();
-
-    await page.emulateMedia({ media: 'print' });
-
-    await expect(masthead).toBeVisible();
-    await expect(plan).toBeVisible();
-    await expect(plan.getByText('Out of date.')).toBeVisible();
-    await expect(plan.getByRole('region', { name: 'Unplaced Parts (2)' })).toBeVisible();
-    await expect(
-      plan.getByRole('region', { name: 'Layouts' }).locator('wt-stock-bar'),
-    ).toBeVisible();
-    for (const hidden of [
+    // Everything that stays on screen, each one shown before printing so its check below means something.
+    const screenOnly = [
       page.getByRole('banner'),
       page.getByRole('contentinfo'),
       page.getByRole('heading', { level: 1 }),
@@ -278,7 +269,21 @@ test.describe('printing', () => {
       page.getByRole('button', { name: 'Generate Cutting Plan' }),
       page.getByRole('button', { name: 'Print Cutting Plan' }),
       page.getByRole('checkbox', { name: 'Show every Stock' }),
-    ]) {
+    ];
+    for (const shown of screenOnly) {
+      await expect(shown).toBeVisible();
+    }
+
+    await page.emulateMedia({ media: 'print' });
+
+    await expect(masthead).toBeVisible();
+    await expect(plan).toBeVisible();
+    await expect(plan.getByText('Out of date.')).toBeVisible();
+    await expect(plan.getByRole('region', { name: 'Unplaced Parts (2)' })).toBeVisible();
+    await expect(
+      plan.getByRole('region', { name: 'Layouts' }).locator('wt-stock-bar'),
+    ).toBeVisible();
+    for (const hidden of screenOnly) {
       await expect(hidden).toBeHidden();
     }
     // The light theme's ink, never the dark theme's light text, which white paper would hide.

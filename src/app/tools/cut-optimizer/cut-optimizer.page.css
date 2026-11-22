@@ -47,7 +47,7 @@ div {
   wt-stock-section,
   wt-cut-list-section,
   wt-job-settings-section,
-  div {
+  #generate {
     display: none;
   }
 

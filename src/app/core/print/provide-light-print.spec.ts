@@ -69,10 +69,11 @@ describe('provideLightPrint', () => {
   });
 
   it('stops following printing once the app is destroyed', () => {
-    const { root } = setUp();
+    const { root, printMedia } = setUp();
 
     TestBed.resetTestingModule();
     window.dispatchEvent(new Event('beforeprint'));
+    printMedia.set(true);
 
     expect(root.hasAttribute('data-theme')).toBe(false);
   });
