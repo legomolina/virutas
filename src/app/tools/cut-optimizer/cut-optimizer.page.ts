@@ -106,31 +106,41 @@ export default class CutOptimizerPage {
   /** The last Cutting Plan generated, if any. */
   protected readonly generated = signal<GeneratedPlan | undefined>(undefined);
 
-  /** Whether a Cutting Plan is being built; it cannot be generated again meanwhile. */
-  protected readonly generating = signal(false);
+  /**
+   * Where generating stands: `building` while a Cutting Plan is built (it cannot be generated
+   * again meanwhile), `failed` when the last one could not be built.
+   */
+  protected readonly generation = signal<'idle' | 'building' | 'failed'>('idle');
 
-  /** Whether the last Cutting Plan asked for could not be built. */
-  protected readonly failed = signal(false);
+  /** The messages that explain the Generate action: why it is blocked, or that it failed. */
+  protected readonly generateDescription = computed(() => {
+    const ids = [
+      ...(this.request().ok ? [] : ['generate-blocked']),
+      ...(this.generation() === 'failed' ? ['generate-failed'] : []),
+    ];
+    return ids.length > 0 ? ids.join(' ') : null;
+  });
 
   /**
    * Builds the Cutting Plan from the current input and moves focus to its summary. The plan is
-   * a pending task, so the page is not stable until it arrives.
+   * a pending task, so the page is not stable until it arrives. When it cannot be built, the
+   * previous plan is dropped, since it no longer matches what was asked for.
    */
   protected async generate(): Promise<void> {
     const request = this.request();
-    if (!request.ok || this.generating()) {
+    if (!request.ok || this.generation() === 'building') {
       return;
     }
-    this.generating.set(true);
-    this.failed.set(false);
+    this.generation.set('building');
     const done = this.pendingTasks.add();
     try {
       this.generated.set({ plan: await this.planner(request.input), input: request.input });
+      this.generation.set('idle');
       afterNextRender(() => this.cuttingPlan()?.focusSummary(), { injector: this.injector });
     } catch {
-      this.failed.set(true);
+      this.generated.set(undefined);
+      this.generation.set('failed');
     } finally {
-      this.generating.set(false);
       done();
     }
   }

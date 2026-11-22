@@ -21,6 +21,10 @@ export const planCutsInWorker: CuttingPlanner = async (input) =>
       worker.terminate();
       reject(new Error(`The Cutting Plan could not be built: ${event.message}`));
     });
+    worker.addEventListener('messageerror', () => {
+      worker.terminate();
+      reject(new Error('The Cutting Plan could not be read from the worker.'));
+    });
     worker.postMessage(input);
   });
 

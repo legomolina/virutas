@@ -136,6 +136,6 @@ test.describe('the Cutting Plan', () => {
     const summary = page.getByRole('group', { name: 'Cutting Plan' });
     await expect(summary).toBeFocused();
     await expect(summary).toContainText('2 in total');
-    expect(workers).toHaveLength(1);
+    expect(workers).toEqual([expect.stringMatching(/cut-optimizer.*worker|worker-/u)]);
   });
 });

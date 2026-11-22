@@ -1208,68 +1208,117 @@ describe('CutOptimizerPage', () => {
       expect(textOf(root(fixture).querySelector(`#${name}`))).toBe('Cutting Plan');
     });
 
-    it('cannot be generated again while the Cutting Plan is being built', async () => {
+    /** The page with a planner that holds each Cutting Plan, its input already typed. */
+    async function renderHeld(): Promise<{
+      fixture: ComponentFixture<CutOptimizerPage>;
+      planner: HeldPlanner;
+    }> {
       const planner = new HeldPlanner();
       const fixture = render(planner.plan);
       await fixture.whenStable();
       await fill(fixture, ...legsAndShelf);
+      return { fixture, planner };
+    }
 
-      generateButton(fixture).click();
+    /** Presses Generate from the keyboard's point of view, without waiting for the plan. */
+    function startGenerating(fixture: ComponentFixture<CutOptimizerPage>, name?: string): void {
+      const generate = generateButton(fixture, name);
+      generate.focus();
+      generate.click();
       fixture.detectChanges();
-      expect(generateButton(fixture).disabled).toBe(true);
-      generateButton(fixture).click();
+    }
+
+    function status(fixture: ComponentFixture<CutOptimizerPage>): string {
+      return textOf(root(fixture).querySelector('[role="status"]'));
+    }
+
+    it('says the Cutting Plan is being built, and cannot be generated again meanwhile', async () => {
+      const { fixture, planner } = await renderHeld();
+      expect(status(fixture)).toBe('');
+
+      startGenerating(fixture);
+
+      const generate = generateButton(fixture);
+      expect(generate.getAttribute('aria-disabled')).toBe('true');
+      expect(document.activeElement).toBe(generate);
+      expect(status(fixture)).toBe('Building the Cutting Plan…');
+      generate.click();
       fixture.detectChanges();
       expect(planner.requests).toHaveLength(1);
 
       planner.answer();
       await fixture.whenStable();
 
-      expect(generateButton(fixture).disabled).toBe(false);
+      expect(generateButton(fixture).getAttribute('aria-disabled')).toBeNull();
+      expect(status(fixture)).toBe('');
       expect(totals(fixture)[0]).toEqual(['Stock used', '3 in total', '3 × 2400 mm']);
+      expect(document.activeElement).toBe(plan(fixture).querySelector('#plan-summary'));
     });
 
     it('says when the Cutting Plan could not be built, and can be generated again', async () => {
-      const planner = new HeldPlanner();
-      const fixture = render(planner.plan);
-      await fixture.whenStable();
-      await fill(fixture, ...legsAndShelf);
+      const { fixture, planner } = await renderHeld();
 
-      generateButton(fixture).click();
-      fixture.detectChanges();
+      startGenerating(fixture);
       planner.fail();
       await fixture.whenStable();
 
-      expect(generateButton(fixture).disabled).toBe(false);
-      expect(textOf(root(fixture).querySelector('[role="alert"]'))).toBe(
+      const generate = generateButton(fixture);
+      expect(generate.getAttribute('aria-disabled')).toBeNull();
+      expect(document.activeElement).toBe(generate);
+      expect(alerts(fixture)).toEqual(['The Cutting Plan could not be built. Try again.']);
+      expect(description(fixture, generate)).toEqual([
         'The Cutting Plan could not be built. Try again.',
-      );
+      ]);
+      expect(status(fixture)).toBe('');
       expect(root(fixture).querySelector('section#cutting-plan')).toBeNull();
 
-      generateButton(fixture).click();
-      fixture.detectChanges();
+      startGenerating(fixture);
       planner.answer();
       await fixture.whenStable();
 
-      expect(root(fixture).querySelector('[role="alert"]')).toBeNull();
+      expect(alerts(fixture)).toEqual([]);
+      expect(generateButton(fixture).getAttribute('aria-describedby')).toBeNull();
       expect(totals(fixture)[0]).toEqual(['Stock used', '3 in total', '3 × 2400 mm']);
     });
 
-    it('says in Spanish when the Cutting Plan could not be built', async () => {
-      const planner = new HeldPlanner();
-      const fixture = render(planner.plan);
-      await fixture.whenStable();
-      await fill(fixture, ...legsAndShelf);
-      TestBed.inject(TranslocoService).setActiveLang('es');
+    it('drops the previous Cutting Plan when the next one could not be built', async () => {
+      const { fixture, planner } = await renderHeld();
+      startGenerating(fixture);
+      planner.answer();
       await fixture.whenStable();
 
-      generateButton(fixture, 'Generar plan de corte').click();
-      fixture.detectChanges();
+      startGenerating(fixture);
       planner.fail();
       await fixture.whenStable();
 
-      expect(textOf(root(fixture).querySelector('[role="alert"]'))).toBe(
-        'No se ha podido generar el plan de corte. Vuelve a intentarlo.',
+      expect(alerts(fixture)).toEqual(['The Cutting Plan could not be built. Try again.']);
+      expect(root(fixture).querySelector('section#cutting-plan')).toBeNull();
+      expect(textOf(root(fixture).querySelector('#plan-placeholder'))).toBe(
+        'Your Cutting Plan appears here once you generate it.',
       );
+    });
+
+    it('says in Spanish that the Cutting Plan is being built, or could not be', async () => {
+      const { fixture, planner } = await renderHeld();
+      TestBed.inject(TranslocoService).setActiveLang('es');
+      await fixture.whenStable();
+
+      startGenerating(fixture, 'Generar plan de corte');
+      expect(status(fixture)).toBe('Generando el plan de corte…');
+      planner.fail();
+      await fixture.whenStable();
+
+      expect(alerts(fixture)).toEqual([
+        'No se ha podido generar el plan de corte. Vuelve a intentarlo.',
+      ]);
+    });
+
+    it('has no accessibility violations while the Cutting Plan is being built', async () => {
+      const { fixture } = await renderHeld();
+
+      startGenerating(fixture);
+
+      await expectNoAxeViolations(root(fixture));
     });
 
     it('separates each Part name from its length in the Cut order', async () => {

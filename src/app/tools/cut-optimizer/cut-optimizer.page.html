@@ -15,13 +15,15 @@
 />
 
 @let request = this.request();
+@let generation = this.generation();
 <div>
   <button
     wt-button
     variant="primary"
     type="button"
-    [disabled]="!request.ok || generating()"
-    [attr.aria-describedby]="request.ok ? null : 'generate-blocked'"
+    [disabled]="!request.ok"
+    [attr.aria-disabled]="generation === 'building' ? 'true' : null"
+    [attr.aria-describedby]="generateDescription()"
     (click)="generate()"
   >
     {{ 'cutOptimizer.generate.action' | transloco }}
@@ -41,8 +43,13 @@
       }
     </p>
   }
-  @if (failed()) {
-    <p role="alert">{{ 'cutOptimizer.generate.failed' | transloco }}</p>
+  <p role="status">
+    @if (generation === 'building') {
+      {{ 'cutOptimizer.generate.building' | transloco }}
+    }
+  </p>
+  @if (generation === 'failed') {
+    <p id="generate-failed" role="alert">{{ 'cutOptimizer.generate.failed' | transloco }}</p>
   }
 </div>
 
