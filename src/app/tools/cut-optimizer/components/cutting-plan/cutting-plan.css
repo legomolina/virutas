@@ -128,33 +128,6 @@ ul span {
   justify-content: space-between;
 }
 
-label {
-  cursor: pointer;
-
-  display: inline-flex;
-  gap: var(--space-3);
-  align-items: center;
-
-  min-block-size: 44px;
-
-  font: var(--text-label);
-}
-
-input {
-  flex: none;
-
-  inline-size: 24px;
-  block-size: 24px;
-  margin: 0;
-
-  accent-color: var(--ink);
-}
-
-input:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus);
-  outline-offset: 2px;
-}
-
 article {
   display: flex;
   flex-direction: column;

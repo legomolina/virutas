@@ -4,8 +4,13 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import type { ShowLengthOptions } from '../../../../shared/measurement/show-length.calc';
 import { defaultDisplayUnit, showLength } from '../../../../shared/measurement/show-length.calc';
 import type { UnitSystem } from '../../../../shared/measurement/unit-system';
-import type { CutOptimizerInput, CuttingPlan, StrategyId } from '../../cut-optimizer.calc';
-import type { StockLayout } from '../../cut-optimizer.calc';
+import { Checkbox } from '../../../../shared/ui/checkbox/checkbox';
+import type {
+  CutOptimizerInput,
+  CuttingPlan,
+  StockLayout,
+  StrategyId,
+} from '../../cut-optimizer.calc';
 import {
   expandGroups,
   groupUnplacedParts,
@@ -14,6 +19,7 @@ import {
 
 /** A layout read as text, every length already shown in the preferred Unit System. */
 interface LayoutText {
+  readonly stockLength: string;
   readonly parts: readonly { readonly name?: string; readonly length: string }[];
   readonly cuts: number;
   /** Absent when there is no Trim. */
@@ -21,14 +27,13 @@ interface LayoutText {
   readonly leftover: { readonly kind: StockLayout['leftover']['kind']; readonly length: string };
 }
 
-/** A layout as listed: a group of identical Stock, or one Stock when every Stock is shown. */
-interface ListedLayout extends LayoutText {
-  readonly stockLength: string;
-  /** How many identical Stock it stands for: 1 when every Stock is shown. */
-  readonly count: number;
-  /** Its place among every Stock in the plan, counted from 1; absent while grouped. */
-  readonly position?: number;
-}
+/**
+ * A layout as listed: a `group` of identical Stock with its count, or, when every Stock is shown,
+ * one `stock` with its place among every Stock in the plan, counted from 1.
+ */
+type ListedLayout =
+  | (LayoutText & { readonly kind: 'group'; readonly count: number })
+  | (LayoutText & { readonly kind: 'stock'; readonly position: number });
 
 /** The translation key of each Strategy's name. */
 const STRATEGY_NAMES: Readonly<Record<StrategyId, string>> = {
@@ -43,7 +48,7 @@ const STRATEGY_NAMES: Readonly<Record<StrategyId, string>> = {
  */
 @Component({
   selector: 'wt-cutting-plan',
-  imports: [TranslocoPipe],
+  imports: [Checkbox, TranslocoPipe],
   templateUrl: './cutting-plan.html',
   styleUrl: './cutting-plan.css',
 })
@@ -60,7 +65,7 @@ export class CuttingPlanView {
   readonly lengthOptions = input.required<ShowLengthOptions>();
 
   /** Whether each group of identical layouts is expanded into its individual Stock. */
-  protected readonly everyStock = signal(false);
+  protected readonly showEveryStock = signal(false);
 
   protected readonly view = computed(() => {
     const plan = this.plan();
@@ -69,6 +74,7 @@ export class CuttingPlanView {
     const options = this.lengthOptions();
     const show = (millimetres: number): string => showLength(millimetres, unit, options).text;
     const describeLayout = (layout: StockLayout): LayoutText => ({
+      stockLength: show(layout.stockLengthMillimetres),
       parts: layout.parts.map((part) => ({
         name: part.name,
         length: show(part.lengthMillimetres),
@@ -102,17 +108,15 @@ export class CuttingPlanView {
         })),
       })),
       longestUsable: show(longestUsableLength(this.input())),
-      /** Grouped: each with its `count`. Every Stock: one each, with its `position` in the plan. */
-      layouts: this.everyStock()
+      layouts: this.showEveryStock()
         ? expandGroups(plan.groups).map(({ layout, position }): ListedLayout => ({
-            count: 1,
+            kind: 'stock',
             position,
-            stockLength: show(layout.stockLengthMillimetres),
             ...describeLayout(layout),
           }))
         : plan.groups.map(({ layout, count }): ListedLayout => ({
+            kind: 'group',
             count,
-            stockLength: show(layout.stockLengthMillimetres),
             ...describeLayout(layout),
           })),
     };

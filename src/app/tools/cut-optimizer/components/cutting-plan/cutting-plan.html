@@ -83,35 +83,33 @@
     <section id="layouts" aria-labelledby="layouts-title">
       <div id="layouts-header">
         <h3 id="layouts-title">{{ 'cutOptimizer.plan.layouts.title' | transloco }}</h3>
-        <label>
-          <input
-            #everyStockToggle
-            type="checkbox"
-            [checked]="everyStock()"
-            (change)="everyStock.set(everyStockToggle.checked)"
-          />
-          {{ 'cutOptimizer.plan.layouts.showEveryStock' | transloco }}
-        </label>
+        <wt-checkbox
+          [label]="'cutOptimizer.plan.layouts.showEveryStock' | transloco"
+          [(checked)]="showEveryStock"
+        />
       </div>
 
       @for (layout of plan.layouts; track $index; let n = $index) {
         <article [attr.aria-labelledby]="'layout-' + n + '-title'">
           <h4 [id]="'layout-' + n + '-title'">
-            @if (layout.position === undefined) {
-              {{
-                'cutOptimizer.plan.layouts.heading'
-                  | transloco: { count: layout.count, length: layout.stockLength }
-              }}
-            } @else {
-              {{
-                'cutOptimizer.plan.layouts.headingOne'
-                  | transloco
-                    : {
-                        position: layout.position,
-                        total: plan.stockTotal,
-                        length: layout.stockLength,
-                      }
-              }}
+            @switch (layout.kind) {
+              @case ('group') {
+                {{
+                  'cutOptimizer.plan.layouts.groupHeading'
+                    | transloco: { count: layout.count, length: layout.stockLength }
+                }}
+              }
+              @case ('stock') {
+                {{
+                  'cutOptimizer.plan.layouts.stockHeading'
+                    | transloco
+                      : {
+                          position: layout.position,
+                          total: plan.stockTotal,
+                          length: layout.stockLength,
+                        }
+                }}
+              }
             }
           </h4>
 
