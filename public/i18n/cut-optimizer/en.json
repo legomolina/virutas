@@ -66,6 +66,7 @@
   },
   "generate": {
     "action": "Generate Cutting Plan",
+    "failed": "The Cutting Plan could not be built. Try again.",
     "placeholder": "Your Cutting Plan appears here once you generate it.",
     "blocked": {
       "invalidFields": "Fix the fields marked above to generate the Cutting Plan.",

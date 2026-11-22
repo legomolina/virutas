@@ -20,7 +20,7 @@
     wt-button
     variant="primary"
     type="button"
-    [disabled]="!request.ok"
+    [disabled]="!request.ok || generating()"
     [attr.aria-describedby]="request.ok ? null : 'generate-blocked'"
     (click)="generate()"
   >
@@ -40,6 +40,9 @@
         }
       }
     </p>
+  }
+  @if (failed()) {
+    <p role="alert">{{ 'cutOptimizer.generate.failed' | transloco }}</p>
   }
 </div>
 

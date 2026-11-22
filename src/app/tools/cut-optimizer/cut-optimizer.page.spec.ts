@@ -7,9 +7,51 @@ import optimizerEn from '../../../../public/i18n/cut-optimizer/en.json';
 import optimizerEs from '../../../../public/i18n/cut-optimizer/es.json';
 import { expectNoAxeViolations } from '../../../testing/expect-no-axe-violations';
 import { translocoTesting } from '../../../testing/transloco-testing';
+import type { CutOptimizerInput, CuttingPlan } from './cut-optimizer.calc';
+import { planCuts } from './cut-optimizer.calc';
 import CutOptimizerPage from './cut-optimizer.page';
+import type { CuttingPlanner } from './cutting-planner';
+import { CUTTING_PLANNER } from './cutting-planner';
 
-function render(): ComponentFixture<CutOptimizerPage> {
+/** Runs the engine in-process: jsdom has no Web Worker. */
+const planCutsInProcess: CuttingPlanner = async (input) => Promise.resolve(planCuts(input));
+
+interface HeldRequest {
+  readonly input: CutOptimizerInput;
+  readonly resolve: (plan: CuttingPlan) => void;
+  readonly reject: (reason: Error) => void;
+}
+
+/** A planner that holds each request until the test answers it or makes it fail. */
+class HeldPlanner {
+  readonly requests: HeldRequest[] = [];
+
+  readonly plan: CuttingPlanner = async (input) =>
+    new Promise((resolve, reject) => {
+      this.requests.push({ input, resolve, reject });
+    });
+
+  /** Answers the oldest request with the engine's plan. */
+  answer(): void {
+    const request = this.next();
+    request.resolve(planCuts(request.input));
+  }
+
+  /** Makes the oldest request fail. */
+  fail(): void {
+    this.next().reject(new Error('The worker failed.'));
+  }
+
+  private next(): HeldRequest {
+    const request = this.requests.shift();
+    if (!request) {
+      throw new Error('No request to answer.');
+    }
+    return request;
+  }
+}
+
+function render(planner: CuttingPlanner = planCutsInProcess): ComponentFixture<CutOptimizerPage> {
   TestBed.configureTestingModule({
     imports: [
       translocoTesting({
@@ -17,7 +59,7 @@ function render(): ComponentFixture<CutOptimizerPage> {
         'cut-optimizer/es': optimizerEs,
       }),
     ],
-    providers: [provideRouter([])],
+    providers: [provideRouter([]), { provide: CUTTING_PLANNER, useValue: planner }],
   });
   TestBed.inject(SettingsStore).setUnitSystem('metric');
   return TestBed.createComponent(CutOptimizerPage);
@@ -1164,6 +1206,70 @@ describe('CutOptimizerPage', () => {
       expect(summary?.getAttribute('role')).toBe('group');
       const name = summary?.getAttribute('aria-labelledby') ?? '';
       expect(textOf(root(fixture).querySelector(`#${name}`))).toBe('Cutting Plan');
+    });
+
+    it('cannot be generated again while the Cutting Plan is being built', async () => {
+      const planner = new HeldPlanner();
+      const fixture = render(planner.plan);
+      await fixture.whenStable();
+      await fill(fixture, ...legsAndShelf);
+
+      generateButton(fixture).click();
+      fixture.detectChanges();
+      expect(generateButton(fixture).disabled).toBe(true);
+      generateButton(fixture).click();
+      fixture.detectChanges();
+      expect(planner.requests).toHaveLength(1);
+
+      planner.answer();
+      await fixture.whenStable();
+
+      expect(generateButton(fixture).disabled).toBe(false);
+      expect(totals(fixture)[0]).toEqual(['Stock used', '3 in total', '3 × 2400 mm']);
+    });
+
+    it('says when the Cutting Plan could not be built, and can be generated again', async () => {
+      const planner = new HeldPlanner();
+      const fixture = render(planner.plan);
+      await fixture.whenStable();
+      await fill(fixture, ...legsAndShelf);
+
+      generateButton(fixture).click();
+      fixture.detectChanges();
+      planner.fail();
+      await fixture.whenStable();
+
+      expect(generateButton(fixture).disabled).toBe(false);
+      expect(textOf(root(fixture).querySelector('[role="alert"]'))).toBe(
+        'The Cutting Plan could not be built. Try again.',
+      );
+      expect(root(fixture).querySelector('section#cutting-plan')).toBeNull();
+
+      generateButton(fixture).click();
+      fixture.detectChanges();
+      planner.answer();
+      await fixture.whenStable();
+
+      expect(root(fixture).querySelector('[role="alert"]')).toBeNull();
+      expect(totals(fixture)[0]).toEqual(['Stock used', '3 in total', '3 × 2400 mm']);
+    });
+
+    it('says in Spanish when the Cutting Plan could not be built', async () => {
+      const planner = new HeldPlanner();
+      const fixture = render(planner.plan);
+      await fixture.whenStable();
+      await fill(fixture, ...legsAndShelf);
+      TestBed.inject(TranslocoService).setActiveLang('es');
+      await fixture.whenStable();
+
+      generateButton(fixture, 'Generar plan de corte').click();
+      fixture.detectChanges();
+      planner.fail();
+      await fixture.whenStable();
+
+      expect(textOf(root(fixture).querySelector('[role="alert"]'))).toBe(
+        'No se ha podido generar el plan de corte. Vuelve a intentarlo.',
+      );
     });
 
     it('separates each Part name from its length in the Cut order', async () => {

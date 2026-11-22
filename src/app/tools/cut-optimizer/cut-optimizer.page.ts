@@ -4,6 +4,7 @@ import {
   computed,
   inject,
   Injector,
+  PendingTasks,
   signal,
   viewChild,
 } from '@angular/core';
@@ -17,8 +18,8 @@ import { StockSection } from './components/stock-section/stock-section';
 import type { TypedCutListEntry } from './cut-list-entry.calc';
 import { emptyCutListEntry } from './cut-list-entry.calc';
 import type { CutOptimizerInput, CuttingPlan, StrategyId } from './cut-optimizer.calc';
-import { planCuts } from './cut-optimizer.calc';
 import { readCuttingPlanRequest } from './cutting-plan-request.calc';
+import { CUTTING_PLANNER } from './cutting-planner';
 import { editableLength } from './editable-length';
 import type { JobSettingsTexts } from './job-settings.calc';
 import type { TypedStockEntry } from './stock-entry.calc';
@@ -47,6 +48,8 @@ interface GeneratedPlan {
 export default class CutOptimizerPage {
   protected readonly settings = inject(SettingsStore);
   private readonly injector = inject(Injector);
+  private readonly pendingTasks = inject(PendingTasks);
+  private readonly planner = inject(CUTTING_PLANNER);
 
   private readonly cuttingPlan = viewChild(CuttingPlanView);
 
@@ -103,13 +106,32 @@ export default class CutOptimizerPage {
   /** The last Cutting Plan generated, if any. */
   protected readonly generated = signal<GeneratedPlan | undefined>(undefined);
 
-  /** Builds the Cutting Plan from the current input and moves focus to its summary. */
-  protected generate(): void {
+  /** Whether a Cutting Plan is being built; it cannot be generated again meanwhile. */
+  protected readonly generating = signal(false);
+
+  /** Whether the last Cutting Plan asked for could not be built. */
+  protected readonly failed = signal(false);
+
+  /**
+   * Builds the Cutting Plan from the current input and moves focus to its summary. The plan is
+   * a pending task, so the page is not stable until it arrives.
+   */
+  protected async generate(): Promise<void> {
     const request = this.request();
-    if (!request.ok) {
+    if (!request.ok || this.generating()) {
       return;
     }
-    this.generated.set({ plan: planCuts(request.input), input: request.input });
-    afterNextRender(() => this.cuttingPlan()?.focusSummary(), { injector: this.injector });
+    this.generating.set(true);
+    this.failed.set(false);
+    const done = this.pendingTasks.add();
+    try {
+      this.generated.set({ plan: await this.planner(request.input), input: request.input });
+      afterNextRender(() => this.cuttingPlan()?.focusSummary(), { injector: this.injector });
+    } catch {
+      this.failed.set(true);
+    } finally {
+      this.generating.set(false);
+      done();
+    }
   }
 }
