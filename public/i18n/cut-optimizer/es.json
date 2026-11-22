@@ -66,6 +66,8 @@
   },
   "generate": {
     "action": "Generar plan de corte",
+    "building": "Generando el plan de corte…",
+    "failed": "No se ha podido generar el plan de corte. Vuelve a intentarlo.",
     "placeholder": "Tu plan de corte aparecerá aquí cuando lo generes.",
     "blocked": {
       "invalidFields": "Corrige los campos marcados arriba para generar el plan de corte.",
@@ -99,7 +101,9 @@
     },
     "layouts": {
       "title": "Distribución por material",
-      "heading": "{{ count }}× material de {{ length }}",
+      "showEveryStock": "Mostrar cada material por separado",
+      "groupHeading": "{{ count }}× material de {{ length }}",
+      "stockHeading": "Material {{ position }} de {{ total }} · {{ length }}",
       "cutOrder": "Orden de corte",
       "cuts": "Cortes",
       "trim": "Saneado",
@@ -119,6 +123,11 @@
           "waste": "Desperdicio"
         }
       }
+    },
+    "outOfDate": {
+      "badge": "Desactualizado",
+      "title": "Desactualizado.",
+      "message": "Has cambiado el material, la lista de piezas o los ajustes del trabajo después de generar este plan de corte. Vuelve a generarlo antes de cortar."
     }
   }
 }

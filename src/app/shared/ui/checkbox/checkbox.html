@@ -1,0 +1,4 @@
+<label>
+  <input #box type="checkbox" [checked]="checked()" (change)="checked.set(box.checked)" />
+  {{ label() }}
+</label>

@@ -1,6 +1,11 @@
 /** How the Cutting Plan is read as text: pure, no Angular, every length in millimetres. */
 
-import type { CutOptimizerInput, StockLayout, UnplacedPart } from './cut-optimizer.calc';
+import type {
+  CutOptimizerInput,
+  LayoutGroup,
+  StockLayout,
+  UnplacedPart,
+} from './cut-optimizer.calc';
 
 export interface UnplacedPartCount {
   readonly name?: string;
@@ -39,6 +44,23 @@ const TRIMMED_ENDS = 2;
 export function longestUsableLength(input: CutOptimizerInput): number {
   const longest = Math.max(...input.stock.map((entry) => entry.lengthMillimetres));
   return Math.max(0, longest - TRIMMED_ENDS * input.settings.trimMillimetres);
+}
+
+/** One Stock of the plan, shown on its own. */
+export interface NumberedLayout {
+  readonly layout: StockLayout;
+  /** Counted from 1 over every Stock in the plan. */
+  readonly position: number;
+}
+
+/**
+ * Expands each group of identical layouts into its individual Stock, so they can be ticked off one by
+ * one: the groups keep their order and each Stock is numbered across the whole plan.
+ */
+export function expandGroups(groups: readonly LayoutGroup[]): NumberedLayout[] {
+  return groups
+    .flatMap(({ layout, count }) => Array.from({ length: count }, () => layout))
+    .map((layout, index) => ({ layout, position: index + 1 }));
 }
 
 /** One stretch of a Stock, in order along it: what the bar of a layout draws. */
