@@ -1,6 +1,7 @@
 import type { ElementRef } from '@angular/core';
 import { Component, computed, input, viewChild } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { Icon } from '../../../../shared/ui/icon/icon';
 import type { ShowLengthOptions } from '../../../../shared/measurement/show-length.calc';
 import { defaultDisplayUnit, showLength } from '../../../../shared/measurement/show-length.calc';
 import type { UnitSystem } from '../../../../shared/measurement/unit-system';
@@ -19,7 +20,7 @@ const STRATEGY_NAMES: Readonly<Record<StrategyId, string>> = {
  */
 @Component({
   selector: 'wt-cutting-plan',
-  imports: [TranslocoPipe],
+  imports: [TranslocoPipe, Icon],
   templateUrl: './cutting-plan.html',
   styleUrl: './cutting-plan.css',
 })
@@ -34,6 +35,9 @@ export class CuttingPlanView {
   readonly unitSystem = input.required<UnitSystem>();
 
   readonly lengthOptions = input.required<ShowLengthOptions>();
+
+  /** Whether the input changed after the plan was generated, so it must not be cut from. */
+  readonly outOfDate = input(false);
 
   protected readonly view = computed(() => {
     const plan = this.plan();

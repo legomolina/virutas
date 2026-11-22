@@ -28,6 +28,8 @@ import { emptyStockEntry } from './stock-entry.calc';
 interface GeneratedPlan {
   readonly plan: CuttingPlan;
   readonly input: CutOptimizerInput;
+  /** Everything the input was read from, as it was when the plan was generated. */
+  readonly sources: unknown;
 }
 
 /** The Cut Optimizer's page. */
@@ -100,8 +102,27 @@ export default class CutOptimizerPage {
     ),
   );
 
+  /**
+   * Everything the engine's input is read from. It is a new object whenever one of them
+   * changes, even back to an earlier value, and not when only the language or precision does.
+   */
+  private readonly sources = computed(() => ({
+    stock: this.stock(),
+    cutList: this.cutList(),
+    jobSettingsEdits: this.jobSettingsEdits(),
+    strategy: this.strategy(),
+    defaults: this.settings.cutOptimizerDefaults(),
+    unitSystem: this.settings.unitSystem(),
+  }));
+
   /** The last Cutting Plan generated, if any. */
   protected readonly generated = signal<GeneratedPlan | undefined>(undefined);
+
+  /** Whether any input changed since the Cutting Plan was generated. Undoing it does not count. */
+  protected readonly outOfDate = computed(() => {
+    const generated = this.generated();
+    return generated !== undefined && generated.sources !== this.sources();
+  });
 
   /** Builds the Cutting Plan from the current input and moves focus to its summary. */
   protected generate(): void {
@@ -109,7 +130,11 @@ export default class CutOptimizerPage {
     if (!request.ok) {
       return;
     }
-    this.generated.set({ plan: planCuts(request.input), input: request.input });
+    this.generated.set({
+      plan: planCuts(request.input),
+      input: request.input,
+      sources: this.sources(),
+    });
     afterNextRender(() => this.cuttingPlan()?.focusSummary(), { injector: this.injector });
   }
 }

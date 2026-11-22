@@ -14,8 +14,13 @@
     "title": "Stock",
     "description": "The lengths you can cut from. For example 2400, 94 1/2\" or 2400 mm; without a unit, numbers use your preferred Unit System.",
     "entry": "Stock {{ n }}",
-    "length": { "label": "Length" },
-    "quantity": { "label": "Quantity", "hint": "Empty means as many as needed." },
+    "length": {
+      "label": "Length"
+    },
+    "quantity": {
+      "label": "Quantity",
+      "hint": "Empty means as many as needed."
+    },
     "add": "Add Stock",
     "remove": "Remove",
     "removeLabel": "Remove Stock {{ n }}"
@@ -24,9 +29,15 @@
     "title": "Cut List",
     "description": "The Parts you need, for example 720, 28 3/8\" or 720 mm long. A name is optional; it helps you tell Parts apart in the Cutting Plan.",
     "entry": "Part {{ n }}",
-    "name": { "label": "Name (optional)" },
-    "length": { "label": "Length" },
-    "quantity": { "label": "Quantity" },
+    "name": {
+      "label": "Name (optional)"
+    },
+    "length": {
+      "label": "Length"
+    },
+    "quantity": {
+      "label": "Quantity"
+    },
     "add": "Add Part",
     "remove": "Remove",
     "removeLabel": "Remove Part {{ n }}"
@@ -109,6 +120,11 @@
       "offcut": "Offcut {{ length }}, keep it",
       "waste": "Waste {{ length }}",
       "leftoverNone": "None, the Parts use the whole Stock"
+    },
+    "outOfDate": {
+      "badge": "Out of date",
+      "title": "Out of date.",
+      "message": "You changed the Stock, Cut List or job settings after generating this Cutting Plan. Generate it again before you cut."
     }
   }
 }

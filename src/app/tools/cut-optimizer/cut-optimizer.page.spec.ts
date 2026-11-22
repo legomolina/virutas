@@ -1275,5 +1275,185 @@ describe('CutOptimizerPage', () => {
 
       await expectNoAxeViolations(root(fixture));
     });
+
+    describe('out of date', () => {
+      const outOfDateMessage =
+        'Out of date. You changed the Stock, Cut List or job settings after generating this Cutting Plan. Generate it again before you cut.';
+
+      /** The polite live region of the Cutting Plan. */
+      function status(fixture: ComponentFixture<CutOptimizerPage>): HTMLElement {
+        const found = plan(fixture).querySelector<HTMLElement>('[role="status"]');
+        if (!found) {
+          throw new Error('No status in the Cutting Plan.');
+        }
+        return found;
+      }
+
+      /** What says the plan is out of date: the live region's text and the mark by the heading. */
+      function outOfDate(fixture: ComponentFixture<CutOptimizerPage>): string[] {
+        return [textOf(status(fixture)), textOf(plan(fixture).querySelector('#plan-out-of-date'))];
+      }
+
+      const marked = [outOfDateMessage, 'Out of date'];
+      const unmarked = ['', ''];
+
+      async function generated(): Promise<ComponentFixture<CutOptimizerPage>> {
+        const fixture = render();
+        await fixture.whenStable();
+        await fill(fixture, ...legsAndShelf);
+        await press(fixture, generateButton(fixture));
+        return fixture;
+      }
+
+      const edits: readonly [
+        string,
+        (fixture: ComponentFixture<CutOptimizerPage>) => Promise<void>,
+      ][] = [
+        [
+          'changing a Stock length',
+          async (fixture): Promise<void> =>
+            type(fixture, field(stockEntry(fixture, 'Stock 1'), 'Length'), '2440'),
+        ],
+        [
+          'changing a Stock quantity',
+          async (fixture): Promise<void> =>
+            type(fixture, field(stockEntry(fixture, 'Stock 1'), 'Quantity'), '5'),
+        ],
+        [
+          'adding Stock',
+          async (fixture): Promise<void> => press(fixture, button(root(fixture), 'Add Stock')),
+        ],
+        [
+          'changing a Part name',
+          async (fixture): Promise<void> =>
+            type(fixture, field(part(fixture, 'Part 1'), 'Name (optional)'), 'stile'),
+        ],
+        [
+          'changing a Part length',
+          async (fixture): Promise<void> =>
+            type(fixture, field(part(fixture, 'Part 2'), 'Length'), '1900'),
+        ],
+        [
+          'changing a Part quantity',
+          async (fixture): Promise<void> =>
+            type(fixture, field(part(fixture, 'Part 1'), 'Quantity'), '4'),
+        ],
+        [
+          'removing a Part',
+          async (fixture): Promise<void> => press(fixture, button(root(fixture), 'Remove Part 2')),
+        ],
+        [
+          'changing the Kerf',
+          async (fixture): Promise<void> => type(fixture, field(jobSettings(fixture), 'Kerf'), '4'),
+        ],
+        [
+          'changing the Trim',
+          async (fixture): Promise<void> =>
+            type(fixture, field(jobSettings(fixture), 'Trim at each end'), '5'),
+        ],
+        [
+          'changing the minimum Offcut length',
+          async (fixture): Promise<void> =>
+            type(fixture, field(jobSettings(fixture), 'Minimum Offcut Length'), '200'),
+        ],
+        [
+          'changing the preferred Unit System, which changes how bare lengths are read',
+          async (fixture): Promise<void> => {
+            TestBed.inject(SettingsStore).setUnitSystem('imperial');
+            await fixture.whenStable();
+          },
+        ],
+      ];
+
+      it('is not marked right after generating', async () => {
+        const fixture = await generated();
+
+        expect(outOfDate(fixture)).toEqual(unmarked);
+      });
+
+      it.each(edits)('is marked after %s', async (_, edit) => {
+        const fixture = await generated();
+
+        await edit(fixture);
+
+        expect(outOfDate(fixture)).toEqual(marked);
+      });
+
+      it('is not marked by a change of language or precision, which change no input', async () => {
+        const fixture = await generated();
+
+        TestBed.inject(SettingsStore).setImperialPrecision(32);
+        TestBed.inject(TranslocoService).setActiveLang('es');
+        await fixture.whenStable();
+        TestBed.inject(TranslocoService).setActiveLang('en');
+        await fixture.whenStable();
+
+        expect(outOfDate(fixture)).toEqual(unmarked);
+      });
+
+      it('stays marked when the change is undone, until the plan is generated again', async () => {
+        const fixture = await generated();
+        const kerf = field(jobSettings(fixture), 'Kerf');
+        const original = kerf.value;
+
+        await type(fixture, kerf, '4');
+        await type(fixture, kerf, original);
+        expect(outOfDate(fixture)).toEqual(marked);
+
+        await press(fixture, generateButton(fixture));
+        expect(outOfDate(fixture)).toEqual(unmarked);
+      });
+
+      it('clears the mark when the plan is generated again with the change', async () => {
+        const fixture = await generated();
+        await type(fixture, field(part(fixture, 'Part 1'), 'Quantity'), '3');
+
+        await press(fixture, generateButton(fixture));
+
+        expect(outOfDate(fixture)).toEqual(unmarked);
+        expect(totals(fixture)[0]).toEqual(['Stock used', '2 in total', '2 × 2400 mm']);
+      });
+
+      it('keeps the out-of-date plan on the page while the input is invalid', async () => {
+        const fixture = await generated();
+
+        await type(fixture, field(jobSettings(fixture), 'Kerf'), '-1');
+
+        expect(generateButton(fixture).disabled).toBe(true);
+        expect(outOfDate(fixture)).toEqual(marked);
+        expect(totals(fixture)[0]).toEqual(['Stock used', '3 in total', '3 × 2400 mm']);
+      });
+
+      it('is announced politely from a live region that is on the page before the change', async () => {
+        const fixture = await generated();
+        const region = status(fixture);
+        expect(region.getAttribute('aria-live') ?? 'polite').toBe('polite');
+
+        await type(fixture, field(jobSettings(fixture), 'Kerf'), '4');
+
+        expect(status(fixture)).toBe(region);
+        expect(textOf(region)).toBe(outOfDateMessage);
+      });
+
+      it('is in Spanish', async () => {
+        const fixture = await generated();
+        TestBed.inject(TranslocoService).setActiveLang('es');
+        await fixture.whenStable();
+
+        await type(fixture, field(jobSettings(fixture), 'Grosor de corte'), '4');
+
+        expect(outOfDate(fixture)).toEqual([
+          'Desactualizado. Has cambiado el material, la lista de piezas o los ajustes del trabajo después de generar este plan de corte. Vuelve a generarlo antes de cortar.',
+          'Desactualizado',
+        ]);
+      });
+
+      it('has no accessibility violations when marked', async () => {
+        const fixture = await generated();
+        await type(fixture, field(jobSettings(fixture), 'Kerf'), '4');
+
+        await expectNoAxeViolations(root(fixture));
+      });
+    });
   });
 });
