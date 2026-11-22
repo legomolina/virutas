@@ -6,15 +6,20 @@ import type { ShowLengthOptions } from '../../../../shared/measurement/show-leng
 import { defaultDisplayUnit, showLength } from '../../../../shared/measurement/show-length.calc';
 import type { UnitSystem } from '../../../../shared/measurement/unit-system';
 import { Checkbox } from '../../../../shared/ui/checkbox/checkbox';
+import { StockBar } from '../../../../shared/ui/stock-bar/stock-bar';
+import type { StockBarSegment } from '../../../../shared/ui/stock-bar/stock-bar';
+import { StockBarLegend } from '../../../../shared/ui/stock-bar-legend/stock-bar-legend';
 import type {
   CutOptimizerInput,
   CuttingPlan,
   StockLayout,
   StrategyId,
 } from '../../cut-optimizer.calc';
+import type { LayoutSegment } from '../../cutting-plan-view.calc';
 import {
   expandGroups,
   groupUnplacedParts,
+  layoutSegments,
   longestUsableLength,
 } from '../../cutting-plan-view.calc';
 
@@ -26,6 +31,23 @@ interface LayoutText {
   /** Absent when there is no Trim. */
   readonly trim?: string;
   readonly leftover: { readonly kind: StockLayout['leftover']['kind']; readonly length: string };
+  /** The segments of its bar, a picture of this text. */
+  readonly bar: readonly StockBarSegment[];
+}
+
+/** A segment of a layout as its bar draws it: Parts and the Offcut labelled with their length. */
+function barSegment(
+  segment: LayoutSegment,
+  show: (millimetres: number) => string,
+): StockBarSegment {
+  const length = segment.lengthMillimetres;
+  if (segment.kind === 'part') {
+    return { kind: 'part', length, number: segment.number, label: show(length) };
+  }
+  if (segment.kind === 'offcut') {
+    return { kind: 'offcut', length, label: show(length) };
+  }
+  return { kind: segment.kind, length };
 }
 
 /**
@@ -45,11 +67,12 @@ const STRATEGY_NAMES: Readonly<Record<StrategyId, string>> = {
  * The Cutting Plan read as text: a summary with the totals and the settings it was built with,
  * the Unplaced Parts with their reason, then the layouts, identical ones grouped with a count until
  * "Show every Stock" expands them into individual Stock to tick off one by one.
+ * Each layout also has a bar: a picture of its text, which assistive technology skips.
  * Every length is shown in the preferred Unit System, with `≈` when rounded.
  */
 @Component({
   selector: 'wt-cutting-plan',
-  imports: [Checkbox, Icon, TranslocoPipe],
+  imports: [Checkbox, Icon, StockBar, StockBarLegend, TranslocoPipe],
   templateUrl: './cutting-plan.html',
   styleUrl: './cutting-plan.css',
 })
@@ -86,6 +109,9 @@ export class CuttingPlanView {
       cuts: layout.cuts,
       trim: settings.trimMillimetres > 0 ? show(settings.trimMillimetres) : undefined,
       leftover: { kind: layout.leftover.kind, length: show(layout.leftover.lengthMillimetres) },
+      bar: layoutSegments(layout, settings.trimMillimetres).map((segment) =>
+        barSegment(segment, show),
+      ),
     });
 
     return {

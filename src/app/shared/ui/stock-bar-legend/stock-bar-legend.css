@@ -1,0 +1,83 @@
+:host {
+  display: block;
+  color: var(--ink);
+}
+
+/* As in <wt-stock-bar>: the swatches keep their patterns, in the user's system colours. */
+@media (forced-colors: active) {
+  :host {
+    --ink: CanvasText;
+    --maple: Canvas;
+    --surface-raised: Canvas;
+    --surface-sunken: Canvas;
+    --line: CanvasText;
+
+    forced-color-adjust: none;
+  }
+}
+
+ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-6);
+
+  margin: 0;
+  padding-block: var(--space-3);
+  padding-inline: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+
+  font: var(--text-caption);
+  list-style: none;
+}
+
+li {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* The swatches repeat the patterns of <wt-stock-bar>. */
+[data-kind] {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+  inline-size: 44px;
+  block-size: 24px;
+  border: 1px solid var(--ink);
+
+  font: var(--text-caption);
+  line-height: 1;
+
+  print-color-adjust: exact;
+}
+
+[data-kind='part'] {
+  background-color: var(--maple);
+}
+
+[data-kind='kerf'] {
+  inline-size: 4px;
+  border: 0;
+  background-color: var(--ink);
+}
+
+[data-kind='trim'] {
+  background-color: var(--surface-raised);
+  background-image: repeating-linear-gradient(45deg, var(--ink) 0 1px, transparent 1px 5px);
+}
+
+[data-kind='offcut'] {
+  border: 2px dashed var(--ink);
+  background-color: var(--surface-raised);
+}
+
+[data-kind='waste'] {
+  background-color: var(--surface-sunken);
+  background-image:
+    repeating-linear-gradient(45deg, var(--ink) 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(-45deg, var(--ink) 0 1px, transparent 1px 5px);
+}

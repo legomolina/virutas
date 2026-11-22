@@ -107,6 +107,16 @@
         />
       </div>
 
+      <wt-stock-bar-legend
+        [labels]="{
+          part: 'cutOptimizer.plan.layouts.bar.legend.part' | transloco,
+          kerf: 'cutOptimizer.plan.layouts.bar.legend.kerf' | transloco,
+          trim: 'cutOptimizer.plan.layouts.bar.legend.trim' | transloco,
+          offcut: 'cutOptimizer.plan.layouts.bar.legend.offcut' | transloco,
+          waste: 'cutOptimizer.plan.layouts.bar.legend.waste' | transloco,
+        }"
+      />
+
       @for (layout of plan.layouts; track $index; let n = $index) {
         <article [attr.aria-labelledby]="'layout-' + n + '-title'">
           <h4 [id]="'layout-' + n + '-title'">
@@ -130,6 +140,11 @@
               }
             }
           </h4>
+
+          <wt-stock-bar
+            [segments]="layout.bar"
+            [offcutTerm]="'cutOptimizer.plan.layouts.bar.offcut' | transloco"
+          />
 
           <p [id]="'layout-' + n + '-cut-order'">
             {{ 'cutOptimizer.plan.layouts.cutOrder' | transloco }}

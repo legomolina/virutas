@@ -7,6 +7,10 @@ Add an entry whenever you add, change or remove a guardrail, or when one catches
 Add new entries at the top, in the same shape: a date, then **What happened**, **Root cause** and **Guardrail**. Keep it a list, not a table: Prettier re-aligns a whole table whenever a row widens it, so parallel branches conflict on every line.
 
 - **2026-11-22**
+  - **What happened:** The Cut Optimizer's Stock bars (#113) had to pass the colour contrast audit, but `e2e/accessibility.spec.ts` only audited each page as first loaded, before any Cutting Plan exists, so the bars would never have been checked.
+  - **Root cause:** The audit had no way to bring a page into a state that shows a result.
+  - **Guardrail:** `e2e/accessibility.spec.ts` gained `PAGE_STATES`: a page plus a `prepare` step (here, generating a Cutting Plan), audited like every route in both themes. Add an entry whenever a page shows UI only after the user acts.
+- **2026-11-22**
   - **What happened:** No incident: set when the Cut Optimizer started running its engine in a Web Worker (#110).
   - **Root cause:** Worker files need the `webworker` library instead of the DOM one, so `tsconfig.app.json` excludes `src/**/*.worker.ts`, and `pnpm typecheck` would have stopped checking them.
   - **Guardrail:** `tsconfig.worker.json` covers `src/**/*.worker.ts` (also `webWorkerTsConfig` in `angular.json`), and `pnpm typecheck` runs it alongside the app, spec and e2e configs.

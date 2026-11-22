@@ -112,7 +112,17 @@
       "leftover": "Sobrante",
       "offcut": "Retal de {{ length }}, guárdalo",
       "waste": "Desperdicio de {{ length }}",
-      "leftoverNone": "Ninguno, las piezas ocupan todo el material"
+      "leftoverNone": "Ninguno, las piezas ocupan todo el material",
+      "bar": {
+        "offcut": "Retal",
+        "legend": {
+          "part": "Pieza, numerada en orden de corte",
+          "kerf": "Grosor de corte",
+          "trim": "Saneado",
+          "offcut": "Retal, guárdalo",
+          "waste": "Desperdicio"
+        }
+      }
     },
     "outOfDate": {
       "badge": "Desactualizado",

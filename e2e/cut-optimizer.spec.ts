@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { generateCuttingPlan } from './cutting-plan';
 
 test.use({ locale: 'en-US' });
 
@@ -177,5 +178,50 @@ test.describe('the Cutting Plan', () => {
 
     await expect(toggle).not.toBeChecked();
     await expect(headings).toHaveCount(1);
+  });
+
+  test('draws each Part and Offcut as wide as its share of the Stock', async ({ page }) => {
+    await page.goto('/cut-optimizer');
+    await generateCuttingPlan(page);
+    const bars = page.locator('article wt-stock-bar');
+    await expect(bars.first()).toBeVisible();
+
+    // Kerf, Trim and Waste have a minimum width; every other segment shares what is left by its
+    // length (its flex-grow). How far, in pixels, each one is from its exact share:
+    const offsets = await bars.evaluateAll((elements) =>
+      elements.flatMap((bar) => {
+        const segments = [
+          ...bar.querySelectorAll<HTMLElement>('[data-kind="part"], [data-kind="offcut"]'),
+        ].map((segment) => ({
+          length: Number(segment.style.flexGrow),
+          width: segment.getBoundingClientRect().width,
+        }));
+        const pixelsPerUnit =
+          segments.reduce((sum, { width }) => sum + width, 0) /
+          segments.reduce((sum, { length }) => sum + length, 0);
+        return segments.map(({ length, width }) => Math.abs(width - length * pixelsPerUnit));
+      }),
+    );
+
+    expect(offsets.length).toBeGreaterThan(4);
+    expect(Math.max(...offsets)).toBeLessThan(1);
+  });
+
+  test('keeps Kerf, Trim and Waste visible however short they are', async ({ page }) => {
+    await page.goto('/cut-optimizer');
+    await generateCuttingPlan(page);
+    await expect(page.locator('article wt-stock-bar').first()).toBeVisible();
+
+    const narrowest = (kind: string): Promise<number> =>
+      page
+        .locator(`article wt-stock-bar [data-kind="${kind}"]`)
+        .evaluateAll((segments) =>
+          Math.min(...segments.map((segment) => segment.getBoundingClientRect().width)),
+        );
+
+    // A 3 mm Kerf, 5 mm Trim and a few mm of Waste are well under a pixel per mm of their Stock.
+    expect(await narrowest('kerf')).toBeGreaterThanOrEqual(2);
+    expect(await narrowest('trim')).toBeGreaterThanOrEqual(5);
+    expect(await narrowest('waste')).toBeGreaterThanOrEqual(4);
   });
 });
