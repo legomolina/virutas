@@ -1,10 +1,11 @@
 import type { ElementRef } from '@angular/core';
-import { Component, computed, input, signal, viewChild } from '@angular/core';
+import { Component, computed, DOCUMENT, inject, input, signal, viewChild } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { Icon } from '../../../../shared/ui/icon/icon';
 import type { ShowLengthOptions } from '../../../../shared/measurement/show-length.calc';
 import { defaultDisplayUnit, showLength } from '../../../../shared/measurement/show-length.calc';
 import type { UnitSystem } from '../../../../shared/measurement/unit-system';
+import { Button } from '../../../../shared/ui/button/button';
 import { Checkbox } from '../../../../shared/ui/checkbox/checkbox';
 import { StockBar } from '../../../../shared/ui/stock-bar/stock-bar';
 import type { StockBarSegment } from '../../../../shared/ui/stock-bar/stock-bar';
@@ -72,11 +73,12 @@ const STRATEGY_NAMES: Readonly<Record<StrategyId, string>> = {
  */
 @Component({
   selector: 'wt-cutting-plan',
-  imports: [Checkbox, Icon, StockBar, StockBarLegend, TranslocoPipe],
+  imports: [Button, Checkbox, Icon, StockBar, StockBarLegend, TranslocoPipe],
   templateUrl: './cutting-plan.html',
   styleUrl: './cutting-plan.css',
 })
 export class CuttingPlanView {
+  private readonly document = inject(DOCUMENT);
   private readonly summary = viewChild.required<ElementRef<HTMLElement>>('summary');
 
   readonly plan = input.required<CuttingPlan>();
@@ -151,6 +153,11 @@ export class CuttingPlanView {
           })),
     };
   });
+
+  /** Opens the browser's print dialog; the print styles leave only the Cutting Plan on paper. */
+  protected print(): void {
+    this.document.defaultView?.print();
+  }
 
   /** Moves focus to the summary, so a keyboard or screen-reader user lands on the result. */
   focusSummary(): void {

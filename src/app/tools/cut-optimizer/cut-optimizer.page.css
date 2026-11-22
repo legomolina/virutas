@@ -32,3 +32,32 @@ div {
   font: var(--text-caption);
   background-color: var(--surface-sunken);
 }
+
+#print-masthead {
+  display: none;
+}
+
+/* On paper: the masthead and the Cutting Plan only, never the input or its controls. */
+@media print {
+  :host {
+    gap: var(--space-6);
+  }
+
+  hgroup,
+  wt-stock-section,
+  wt-cut-list-section,
+  wt-job-settings-section,
+  #generate {
+    display: none;
+  }
+
+  #print-masthead {
+    display: block;
+
+    padding-block-end: var(--space-2);
+    border-block-end: 1px solid var(--ink);
+
+    font: var(--text-label);
+    color: var(--ink);
+  }
+}

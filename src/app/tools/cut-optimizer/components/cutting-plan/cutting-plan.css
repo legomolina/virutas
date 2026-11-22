@@ -40,6 +40,11 @@ section {
   align-items: center;
 }
 
+/* Print Cutting Plan, at the end of the heading row. */
+#plan-heading button {
+  margin-inline-start: auto;
+}
+
 #plan-out-of-date {
   padding-inline: var(--space-2);
   border: 1px solid var(--ink);
@@ -232,5 +237,59 @@ article dt {
   #plan-summary,
   article {
     padding: var(--space-4);
+  }
+}
+
+/*
+ * On paper: ink only, so the plan reads the same in black and white with background graphics
+ * off. Tints become outlines, muted text becomes ink, and the controls stay on screen. A block
+ * never splits across pages and a heading stays with what follows it.
+ */
+@media print {
+  #plan-heading button,
+  wt-checkbox {
+    display: none;
+  }
+
+  #plan-summary {
+    border: 2px solid var(--ink);
+    background-color: transparent;
+  }
+
+  #plan-settings {
+    border-block-start-color: var(--ink);
+  }
+
+  #plan-settings,
+  .hint,
+  hgroup p,
+  article p,
+  article dt {
+    color: var(--ink);
+  }
+
+  ul li {
+    border: 2px solid var(--ink);
+    color: var(--ink);
+    background-color: transparent;
+  }
+
+  article {
+    border-color: var(--ink);
+  }
+
+  #plan-out-of-date-message,
+  #plan-summary,
+  ul li,
+  article {
+    break-inside: avoid;
+  }
+
+  hgroup,
+  h2,
+  h3,
+  h4,
+  #layouts-header {
+    break-after: avoid;
   }
 }

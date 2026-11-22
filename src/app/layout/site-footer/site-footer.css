@@ -41,3 +41,10 @@ select {
     padding-inline: var(--space-4);
   }
 }
+
+/* Paper carries only the page content: the shell stays on screen. */
+@media print {
+  :host {
+    display: none;
+  }
+}

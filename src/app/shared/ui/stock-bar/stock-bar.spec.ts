@@ -127,6 +127,29 @@ describe('StockBar', () => {
     ]);
   });
 
+  // Drawn as content, not as a gradient background, so the lines print at any scale.
+  it('hatches Trim with lines one way and Waste with lines both ways, and nothing else', async () => {
+    const { root } = await render(WITH_SHORT_PART);
+
+    const hatched = [...bar(root).querySelectorAll('[data-kind]')].map((segment) => [
+      segment.getAttribute('data-kind'),
+      segment.querySelector('wt-hatch')?.getAttribute('pattern') ?? 'none',
+    ]);
+    expect(hatched).toEqual([
+      ['trim', 'single'],
+      ['part', 'none'],
+      ['kerf', 'none'],
+      ['part', 'none'],
+      ['kerf', 'none'],
+      ['part', 'none'],
+      ['kerf', 'none'],
+      ['part', 'none'],
+      ['kerf', 'none'],
+      ['waste', 'cross'],
+      ['trim', 'single'],
+    ]);
+  });
+
   it('moves the number of a Part under 2 % of the Stock under the bar, at its middle', async () => {
     const { root } = await render(WITH_SHORT_PART);
 

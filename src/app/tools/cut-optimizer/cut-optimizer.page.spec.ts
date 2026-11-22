@@ -1568,6 +1568,35 @@ describe('CutOptimizerPage', () => {
       await expectNoAxeViolations(root(fixture));
     });
 
+    describe('Print Cutting Plan', () => {
+      afterEach(() => {
+        vi.restoreAllMocks();
+      });
+
+      it('opens the browser print dialog from the summary', async () => {
+        const print = vi.spyOn(window, 'print').mockImplementation(() => undefined);
+        const fixture = render();
+        await fixture.whenStable();
+        await fill(fixture, ...legsAndShelf);
+        await press(fixture, generateButton(fixture));
+
+        await press(fixture, button(plan(fixture), 'Print Cutting Plan'));
+
+        expect(print).toHaveBeenCalledOnce();
+      });
+
+      it('is in Spanish', async () => {
+        const fixture = render();
+        await fixture.whenStable();
+        await fill(fixture, ...legsAndShelf);
+        TestBed.inject(TranslocoService).setActiveLang('es');
+        await fixture.whenStable();
+        await press(fixture, generateButton(fixture, 'Generar plan de corte'));
+
+        expect(button(plan(fixture), 'Imprimir plan de corte').type).toBe('button');
+      });
+    });
+
     describe('Show every Stock', () => {
       /** Three identical Stock of leg, leg, rail: two legs and a rail fill a Stock, three legs don't fit. */
       const legsAndRails = [

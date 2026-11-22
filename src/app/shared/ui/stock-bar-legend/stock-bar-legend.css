@@ -65,9 +65,9 @@ li {
   background-color: var(--ink);
 }
 
+/* Trim and Waste are hatched by their <wt-hatch>, as in the bar. */
 [data-kind='trim'] {
   background-color: var(--surface-raised);
-  background-image: repeating-linear-gradient(45deg, var(--ink) 0 1px, transparent 1px 5px);
 }
 
 [data-kind='offcut'] {
@@ -77,7 +77,4 @@ li {
 
 [data-kind='waste'] {
   background-color: var(--surface-sunken);
-  background-image:
-    repeating-linear-gradient(45deg, var(--ink) 0 1px, transparent 1px 5px),
-    repeating-linear-gradient(-45deg, var(--ink) 0 1px, transparent 1px 5px);
 }

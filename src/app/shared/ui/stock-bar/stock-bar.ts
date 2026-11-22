@@ -1,4 +1,5 @@
 import { Component, computed, input } from '@angular/core';
+import { Hatch } from '../hatch/hatch';
 
 /**
  * One stretch of a `<wt-stock-bar>`, in order along the Stock. `length` is in any unit, the same
@@ -59,6 +60,7 @@ const HALF = 0.5;
  */
 @Component({
   selector: 'wt-stock-bar',
+  imports: [Hatch],
   templateUrl: './stock-bar.html',
   styleUrl: './stock-bar.css',
   host: { 'aria-hidden': 'true' },

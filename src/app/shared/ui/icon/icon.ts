@@ -2,6 +2,7 @@ import { Component, input } from '@angular/core';
 import {
   LucideArrowRight,
   LucideMenu,
+  LucidePrinter,
   LucideSlidersHorizontal,
   LucideTriangleExclamationPoint,
   LucideX,
@@ -9,7 +10,7 @@ import {
 
 /** The icons the app uses (Lucide names). Add a name here and a case in `icon.html` to use another. */
 export type IconName =
-  'arrow-right' | 'menu' | 'sliders-horizontal' | 'triangle-exclamation-point' | 'x';
+  'arrow-right' | 'menu' | 'printer' | 'sliders-horizontal' | 'triangle-exclamation-point' | 'x';
 
 /**
  * A decorative Lucide icon (`docs/adr/0004-lucide-icons.md`). It is always
@@ -22,6 +23,7 @@ export type IconName =
   imports: [
     LucideArrowRight,
     LucideMenu,
+    LucidePrinter,
     LucideSlidersHorizontal,
     LucideTriangleExclamationPoint,
     LucideX,

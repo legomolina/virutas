@@ -27,6 +27,7 @@ describe('Icon', () => {
     const names: IconName[] = [
       'arrow-right',
       'menu',
+      'printer',
       'sliders-horizontal',
       'triangle-exclamation-point',
       'x',

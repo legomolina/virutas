@@ -1,0 +1,11 @@
+/* Fills its box: the segment or swatch it hatches gives it its size. */
+:host {
+  display: block;
+  align-self: stretch;
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+svg {
+  display: block;
+}

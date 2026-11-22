@@ -20,6 +20,10 @@
       @if (outOfDate()) {
         <span id="plan-out-of-date">{{ 'cutOptimizer.plan.outOfDate.badge' | transloco }}</span>
       }
+      <button wt-button type="button" (click)="print()">
+        <wt-icon name="printer" />
+        {{ 'cutOptimizer.plan.print' | transloco }}
+      </button>
     </div>
 
     <dl>

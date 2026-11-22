@@ -59,10 +59,10 @@
   background-color: var(--ink);
 }
 
+/* Trim and Waste are hatched by their <wt-hatch>, which prints at any scale. */
 [data-kind='trim'] {
   min-inline-size: 5px;
   background-color: var(--surface-raised);
-  background-image: repeating-linear-gradient(45deg, var(--ink) 0 1px, transparent 1px 5px);
   box-shadow:
     inset 1px 0 var(--ink),
     inset -1px 0 var(--ink);
@@ -77,9 +77,6 @@
 [data-kind='waste'] {
   min-inline-size: 4px;
   background-color: var(--surface-sunken);
-  background-image:
-    repeating-linear-gradient(45deg, var(--ink) 0 1px, transparent 1px 5px),
-    repeating-linear-gradient(-45deg, var(--ink) 0 1px, transparent 1px 5px);
   box-shadow:
     inset 1px 0 var(--ink),
     inset -1px 0 var(--ink);

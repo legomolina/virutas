@@ -26,7 +26,7 @@
 
 @let request = this.request();
 @let generation = this.generation();
-<div>
+<div id="generate">
   <button
     wt-button
     variant="primary"
@@ -62,6 +62,11 @@
     <p id="generate-failed" role="alert">{{ 'cutOptimizer.generate.failed' | transloco }}</p>
   }
 </div>
+
+<!-- Printed above the Cutting Plan, so a sheet in the shop says where it came from. -->
+<p id="print-masthead">
+  {{ 'app.name' | transloco }} · {{ 'tools.cutOptimizer.name' | transloco }}
+</p>
 
 @if (job.generated(); as generated) {
   <wt-cutting-plan
