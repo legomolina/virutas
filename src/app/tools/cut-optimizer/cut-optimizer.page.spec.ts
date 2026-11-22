@@ -1161,7 +1161,41 @@ describe('CutOptimizerPage', () => {
 
       const summary = plan(fixture).querySelector('#plan-summary');
       expect(document.activeElement).toBe(summary);
-      expect(textOf(summary?.querySelector('h2'))).toBe('Cutting Plan');
+      expect(summary?.getAttribute('role')).toBe('group');
+      const name = summary?.getAttribute('aria-labelledby') ?? '';
+      expect(textOf(root(fixture).querySelector(`#${name}`))).toBe('Cutting Plan');
+    });
+
+    it('separates each Part name from its length in the Cut order', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, [['2400', '']], [['leg', '720', '1']]);
+
+      await press(fixture, generateButton(fixture));
+
+      expect(textOf(plan(fixture).querySelector('ol > li'))).toBe('leg 720 mm');
+    });
+
+    it('shows no layouts when every Part is Unplaced', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, [['1800', '']], [['top', '2000', '1']]);
+
+      await press(fixture, generateButton(fixture));
+
+      expect(unplacedParts(fixture)).toHaveLength(1);
+      expect(totals(fixture)[0]).toEqual(['Stock used', '0 in total']);
+      expect(plan(fixture).querySelector('section#layouts')).toBeNull();
+    });
+
+    it('says in Spanish why it cannot be generated', async () => {
+      const fixture = render();
+      TestBed.inject(TranslocoService).setActiveLang('es');
+      await fixture.whenStable();
+
+      expect(description(fixture, generateButton(fixture, 'Generar plan de corte'))).toEqual([
+        'Añade al menos un material y una pieza para generar el plan de corte.',
+      ]);
     });
 
     it('shows Imperial lengths with ≈ when they are rounded', async () => {

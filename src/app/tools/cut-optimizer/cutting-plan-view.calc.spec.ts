@@ -62,4 +62,19 @@ describe('longestUsableLength', () => {
       }),
     ).toBe(2390);
   });
+
+  it('is zero when the Trim takes the whole Stock', () => {
+    expect(
+      longestUsableLength({
+        stock: [{ lengthMillimetres: 100 }],
+        cutList: [],
+        settings: {
+          kerfMillimetres: 3,
+          trimMillimetres: 60,
+          minimumOffcutLengthMillimetres: 300,
+          strategy: 'fewest-stock',
+        },
+      }),
+    ).toBe(0);
+  });
 });

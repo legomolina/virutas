@@ -36,7 +36,7 @@ interface Reading<T> {
   readonly entry?: T;
 }
 
-/** Whether any reading has an error, or any job setting cannot be used. */
+/** Whether any entry has a value that cannot be used. */
 function hasErrors(readings: readonly Reading<unknown>[]): boolean {
   return readings.some((reading) => Object.keys(reading.errors).length > 0);
 }

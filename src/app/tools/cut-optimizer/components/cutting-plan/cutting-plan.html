@@ -1,7 +1,7 @@
 @let plan = view();
 
 <section id="cutting-plan" aria-labelledby="plan-title">
-  <div #summary id="plan-summary" tabindex="-1">
+  <div #summary id="plan-summary" tabindex="-1" role="group" aria-labelledby="plan-title">
     <h2 id="plan-title">{{ 'cutOptimizer.plan.title' | transloco }}</h2>
 
     <dl>
@@ -79,65 +79,70 @@
     </section>
   }
 
-  <section id="layouts" aria-labelledby="layouts-title">
-    <h3 id="layouts-title">{{ 'cutOptimizer.plan.layouts.title' | transloco }}</h3>
+  @if (plan.groups.length > 0) {
+    <section id="layouts" aria-labelledby="layouts-title">
+      <h3 id="layouts-title">{{ 'cutOptimizer.plan.layouts.title' | transloco }}</h3>
 
-    @for (group of plan.groups; track $index; let n = $index) {
-      <article [attr.aria-labelledby]="'layout-' + n + '-title'">
-        <h4 [id]="'layout-' + n + '-title'">
-          {{
-            'cutOptimizer.plan.layouts.heading'
-              | transloco: { count: group.count, length: group.stockLength }
-          }}
-        </h4>
+      @for (group of plan.groups; track $index; let n = $index) {
+        <article [attr.aria-labelledby]="'layout-' + n + '-title'">
+          <h4 [id]="'layout-' + n + '-title'">
+            {{
+              'cutOptimizer.plan.layouts.heading'
+                | transloco: { count: group.count, length: group.stockLength }
+            }}
+          </h4>
 
-        <p [id]="'layout-' + n + '-cut-order'">
-          {{ 'cutOptimizer.plan.layouts.cutOrder' | transloco }}
-        </p>
-        <ol [attr.aria-labelledby]="'layout-' + n + '-cut-order'">
-          @for (part of group.parts; track $index) {
-            <li>
-              @if (part.name !== undefined) {
-                <span>{{ part.name }}</span>
-              }
-              <span>{{ part.length }}</span>
-            </li>
-          }
-        </ol>
+          <p [id]="'layout-' + n + '-cut-order'">
+            {{ 'cutOptimizer.plan.layouts.cutOrder' | transloco }}
+          </p>
+          <ol [attr.aria-labelledby]="'layout-' + n + '-cut-order'">
+            @for (part of group.parts; track $index) {
+              <li>
+                @if (part.name !== undefined) {
+                  <span>{{ part.name }}</span
+                  >&ngsp;
+                }
+                <span>{{ part.length }}</span>
+              </li>
+            }
+          </ol>
 
-        <dl>
-          <div>
-            <dt>{{ 'cutOptimizer.plan.layouts.cuts' | transloco }}</dt>
-            <dd>{{ group.cuts }}</dd>
-          </div>
-          <div>
-            <dt>{{ 'cutOptimizer.plan.layouts.trim' | transloco }}</dt>
-            <dd>
-              @if (group.trim === undefined) {
-                {{ 'cutOptimizer.plan.layouts.none' | transloco }}
-              } @else {
-                {{ 'cutOptimizer.plan.layouts.trimAtEachEnd' | transloco: { length: group.trim } }}
-              }
-            </dd>
-          </div>
-          <div>
-            <dt>{{ 'cutOptimizer.plan.layouts.leftover' | transloco }}</dt>
-            <dd>
-              @switch (group.leftover.kind) {
-                @case ('offcut') {
-                  {{ 'cutOptimizer.plan.layouts.offcut' | transloco: group.leftover }}
+          <dl>
+            <div>
+              <dt>{{ 'cutOptimizer.plan.layouts.cuts' | transloco }}</dt>
+              <dd>{{ group.cuts }}</dd>
+            </div>
+            <div>
+              <dt>{{ 'cutOptimizer.plan.layouts.trim' | transloco }}</dt>
+              <dd>
+                @if (group.trim === undefined) {
+                  {{ 'cutOptimizer.plan.layouts.none' | transloco }}
+                } @else {
+                  {{
+                    'cutOptimizer.plan.layouts.trimAtEachEnd' | transloco: { length: group.trim }
+                  }}
                 }
-                @case ('waste') {
-                  {{ 'cutOptimizer.plan.layouts.waste' | transloco: group.leftover }}
+              </dd>
+            </div>
+            <div>
+              <dt>{{ 'cutOptimizer.plan.layouts.leftover' | transloco }}</dt>
+              <dd>
+                @switch (group.leftover.kind) {
+                  @case ('offcut') {
+                    {{ 'cutOptimizer.plan.layouts.offcut' | transloco: group.leftover }}
+                  }
+                  @case ('waste') {
+                    {{ 'cutOptimizer.plan.layouts.waste' | transloco: group.leftover }}
+                  }
+                  @case ('none') {
+                    {{ 'cutOptimizer.plan.layouts.leftoverNone' | transloco }}
+                  }
                 }
-                @case ('none') {
-                  {{ 'cutOptimizer.plan.layouts.leftoverNone' | transloco }}
-                }
-              }
-            </dd>
-          </div>
-        </dl>
-      </article>
-    }
-  </section>
+              </dd>
+            </div>
+          </dl>
+        </article>
+      }
+    </section>
+  }
 </section>

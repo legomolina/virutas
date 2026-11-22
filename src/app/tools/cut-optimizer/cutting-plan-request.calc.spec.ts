@@ -101,7 +101,10 @@ describe('readCuttingPlanRequest', () => {
       'metric',
     );
 
-    expect(request.ok).toBe(true);
+    expect(request.ok && [request.input.stock, request.input.cutList]).toEqual([
+      [{ lengthMillimetres: 2400 }],
+      [{ lengthMillimetres: 720, quantity: 2 }],
+    ]);
   });
 
   it.each([

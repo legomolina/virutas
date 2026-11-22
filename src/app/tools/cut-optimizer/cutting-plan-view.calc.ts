@@ -32,8 +32,11 @@ export function groupUnplacedParts(unplaced: readonly UnplacedPart[]): UnplacedG
 /** Trim is taken from both ends of every Stock. */
 const TRIMMED_ENDS = 2;
 
-/** The longest length any Stock entry leaves for Parts once trimmed: what a Part must not exceed. */
+/**
+ * The longest length any Stock entry leaves for Parts once trimmed: what a Part must not exceed.
+ * Zero when the Trim takes the whole Stock.
+ */
 export function longestUsableLength(input: CutOptimizerInput): number {
   const longest = Math.max(...input.stock.map((entry) => entry.lengthMillimetres));
-  return longest - TRIMMED_ENDS * input.settings.trimMillimetres;
+  return Math.max(0, longest - TRIMMED_ENDS * input.settings.trimMillimetres);
 }
