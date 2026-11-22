@@ -61,6 +61,22 @@ describe('StockBarLegend', () => {
     ]);
   });
 
+  it('hatches the Trim and Waste swatches as the bar does, and no other', async () => {
+    const { root } = await render();
+
+    const hatched = [...legend(root).querySelectorAll('[data-kind]')].map((swatch) => [
+      swatch.getAttribute('data-kind'),
+      swatch.querySelector('wt-hatch')?.getAttribute('pattern') ?? 'none',
+    ]);
+    expect(hatched).toEqual([
+      ['part', 'none'],
+      ['kerf', 'none'],
+      ['trim', 'single'],
+      ['offcut', 'none'],
+      ['waste', 'cross'],
+    ]);
+  });
+
   it('follows new labels', async () => {
     const { fixture, root } = await render();
 

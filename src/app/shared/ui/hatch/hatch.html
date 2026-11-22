@@ -1,0 +1,17 @@
+<svg width="100%" height="100%">
+  <defs>
+    <pattern
+      [attr.id]="patternId"
+      patternUnits="userSpaceOnUse"
+      width="5"
+      height="5"
+      patternTransform="rotate(-45)"
+    >
+      <rect width="1" height="5" fill="currentColor" />
+      @if (pattern() === 'cross') {
+        <rect width="5" height="1" fill="currentColor" />
+      }
+    </pattern>
+  </defs>
+  <rect width="100%" height="100%" [attr.fill]="'url(#' + patternId + ')'" />
+</svg>

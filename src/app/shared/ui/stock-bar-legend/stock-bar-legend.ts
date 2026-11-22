@@ -1,4 +1,5 @@
 import { Component, input } from '@angular/core';
+import { Hatch } from '../hatch/hatch';
 
 /** The label of each kind of segment of a `<wt-stock-bar>`, in the current language. */
 export interface StockBarLegendLabels {
@@ -20,6 +21,7 @@ export interface StockBarLegendLabels {
  */
 @Component({
   selector: 'wt-stock-bar-legend',
+  imports: [Hatch],
   templateUrl: './stock-bar-legend.html',
   styleUrl: './stock-bar-legend.css',
   host: { 'aria-hidden': 'true' },

@@ -286,6 +286,24 @@ test.describe('printing', () => {
     for (const hidden of screenOnly) {
       await expect(hidden).toBeHidden();
     }
+    // Trim and Waste hatches are drawn as content, filling their swatch or segment, so they print
+    // even where a browser drops background images. Each as [hatch width, height, box width, height]:
+    const hatches = await plan
+      .locator('wt-hatch')
+      .evaluateAll((elements) =>
+        elements.map((hatch) => [
+          hatch.getBoundingClientRect().width,
+          hatch.getBoundingClientRect().height,
+          hatch.parentElement?.clientWidth ?? 0,
+          hatch.parentElement?.clientHeight ?? 0,
+        ]),
+      );
+    expect(hatches.length).toBeGreaterThanOrEqual(2);
+    for (const [width, height, boxWidth, boxHeight] of hatches) {
+      expect(width).toBeGreaterThan(0);
+      expect(height).toBeGreaterThan(0);
+      expect([width, height]).toEqual([boxWidth, boxHeight]);
+    }
     // The light theme's ink, never the dark theme's light text, which white paper would hide.
     await expect(plan.getByRole('heading', { level: 2 })).toHaveCSS('color', 'rgb(42, 32, 23)');
 

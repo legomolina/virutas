@@ -3,6 +3,11 @@
 <div class="segments">
   @for (segment of bar.drawn; track $index) {
     <div [attr.data-kind]="segment.kind" [style.flex-grow]="segment.length">
+      @if (segment.kind === 'trim') {
+        <wt-hatch pattern="single" />
+      } @else if (segment.kind === 'waste') {
+        <wt-hatch pattern="cross" />
+      }
       @if (segment.number !== undefined) {
         <span class="row"
           ><span class="number">{{ segment.number }}</span></span
