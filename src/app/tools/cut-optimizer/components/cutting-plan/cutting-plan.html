@@ -1,8 +1,26 @@
 @let plan = view();
 
 <section id="cutting-plan" aria-labelledby="plan-title">
+  <!-- Always on the page, so a screen reader announces the message when it appears. -->
+  <div role="status">
+    @if (outOfDate()) {
+      <p id="plan-out-of-date-message">
+        <wt-icon name="triangle-exclamation-point" />
+        <span>
+          <strong>{{ 'cutOptimizer.plan.outOfDate.title' | transloco }}</strong>
+          {{ 'cutOptimizer.plan.outOfDate.message' | transloco }}
+        </span>
+      </p>
+    }
+  </div>
+
   <div #summary id="plan-summary" tabindex="-1" role="group" aria-labelledby="plan-title">
-    <h2 id="plan-title">{{ 'cutOptimizer.plan.title' | transloco }}</h2>
+    <div id="plan-heading">
+      <h2 id="plan-title">{{ 'cutOptimizer.plan.title' | transloco }}</h2>
+      @if (outOfDate()) {
+        <span id="plan-out-of-date">{{ 'cutOptimizer.plan.outOfDate.badge' | transloco }}</span>
+      }
+    </div>
 
     <dl>
       <div>

@@ -24,7 +24,13 @@ function render(): { fixture: ComponentFixture<Host>; root: HTMLElement } {
 describe('Icon', () => {
   it('draws exactly one SVG per name, each one different from the others', async () => {
     const { fixture, root } = render();
-    const names: IconName[] = ['arrow-right', 'menu', 'sliders-horizontal', 'x'];
+    const names: IconName[] = [
+      'arrow-right',
+      'menu',
+      'sliders-horizontal',
+      'triangle-exclamation-point',
+      'x',
+    ];
     const drawings: (string | undefined)[] = [];
 
     for (const name of names) {

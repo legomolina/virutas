@@ -113,6 +113,11 @@
       "offcut": "Offcut {{ length }}, keep it",
       "waste": "Waste {{ length }}",
       "leftoverNone": "None, the Parts use the whole Stock"
+    },
+    "outOfDate": {
+      "badge": "Out of date",
+      "title": "Out of date.",
+      "message": "You changed the Stock, Cut List or job settings after generating this Cutting Plan. Generate it again before you cut."
     }
   }
 }

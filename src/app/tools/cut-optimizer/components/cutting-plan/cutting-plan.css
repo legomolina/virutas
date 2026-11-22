@@ -12,6 +12,41 @@ section {
   gap: var(--space-8);
 }
 
+/* Out of date: said in words, with an icon and a strong border, never by colour alone. */
+#plan-out-of-date-message {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+
+  padding-block: var(--space-3);
+  padding-inline: var(--space-4);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius-md);
+
+  font: var(--text-body);
+  color: var(--ink);
+
+  background-color: var(--surface-sunken);
+}
+
+#plan-out-of-date-message wt-icon {
+  margin-block-start: 2px;
+}
+
+#plan-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+}
+
+#plan-out-of-date {
+  padding-inline: var(--space-2);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-sm);
+  font: var(--text-label);
+}
+
 /* Summary: the focus target after generating. */
 #plan-summary {
   display: flex;

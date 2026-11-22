@@ -1,6 +1,7 @@
 import type { ElementRef } from '@angular/core';
 import { Component, computed, input, signal, viewChild } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { Icon } from '../../../../shared/ui/icon/icon';
 import type { ShowLengthOptions } from '../../../../shared/measurement/show-length.calc';
 import { defaultDisplayUnit, showLength } from '../../../../shared/measurement/show-length.calc';
 import type { UnitSystem } from '../../../../shared/measurement/unit-system';
@@ -48,7 +49,7 @@ const STRATEGY_NAMES: Readonly<Record<StrategyId, string>> = {
  */
 @Component({
   selector: 'wt-cutting-plan',
-  imports: [Checkbox, TranslocoPipe],
+  imports: [Checkbox, Icon, TranslocoPipe],
   templateUrl: './cutting-plan.html',
   styleUrl: './cutting-plan.css',
 })
@@ -63,6 +64,9 @@ export class CuttingPlanView {
   readonly unitSystem = input.required<UnitSystem>();
 
   readonly lengthOptions = input.required<ShowLengthOptions>();
+
+  /** Whether the input changed after the plan was generated, so it must not be cut from. */
+  readonly outOfDate = input(false);
 
   /** Whether each group of identical layouts is expanded into its individual Stock. */
   protected readonly showEveryStock = signal(false);

@@ -59,6 +59,7 @@
     [input]="generated.input"
     [unitSystem]="settings.unitSystem()"
     [lengthOptions]="lengthOptions()"
+    [outOfDate]="outOfDate()"
   />
 } @else {
   <p id="plan-placeholder">{{ 'cutOptimizer.generate.placeholder' | transloco }}</p>
