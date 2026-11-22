@@ -3,7 +3,8 @@ import type { FormCheckboxControl } from '@angular/forms/signals';
 
 /**
  * An on/off choice (design system: Checkbox): a native checkbox with its visible
- * label beside it, so it is named by that label, toggles with Space, and the
+ * label beside it, so it is named by that label, toggles with Space (the
+ * browser's own behaviour, covered by the Cut Optimizer e2e), and the
  * whole label is a target at least `control-height` tall. Write the label as
  * what checking it does, in sentence case.
  *

@@ -7,9 +7,10 @@ import { Checkbox } from './checkbox';
 @Component({
   selector: 'wt-host',
   imports: [Checkbox],
-  template: `<wt-checkbox label="Show every Stock" [(checked)]="everyStock" />`,
+  template: `<wt-checkbox [label]="label()" [(checked)]="everyStock" />`,
 })
 class Host {
+  readonly label = signal('Show every Stock');
   readonly everyStock = signal(false);
 }
 
@@ -31,10 +32,15 @@ function checkbox(root: HTMLElement, label: string): HTMLInputElement {
 }
 
 describe('Checkbox', () => {
-  it('is a native checkbox named by its visible label', async () => {
-    const { root } = await render();
+  it('is a native checkbox named by the label it is given', async () => {
+    const { fixture, root } = await render();
+    expect(checkbox(root, 'Show every Stock')).toBeInstanceOf(HTMLInputElement);
 
-    expect(checkbox(root, 'Show every Stock').type).toBe('checkbox');
+    fixture.componentInstance.label.set('Mostrar cada material por separado');
+    await fixture.whenStable();
+
+    expect(checkbox(root, 'Mostrar cada material por separado')).toBeInstanceOf(HTMLInputElement);
+    expect(root.querySelectorAll('input[type="checkbox"]')).toHaveLength(1);
   });
 
   it('shows the bound state', async () => {
@@ -62,7 +68,9 @@ describe('Checkbox', () => {
   it('can be checked by clicking its label', async () => {
     const { fixture, root } = await render();
 
-    checkbox(root, 'Show every Stock').labels?.[0]?.click();
+    const label = root.querySelector('label');
+    expect(label?.textContent.trim()).toBe('Show every Stock');
+    label?.click();
     await fixture.whenStable();
 
     expect(fixture.componentInstance.everyStock()).toBe(true);
