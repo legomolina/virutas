@@ -1,6 +1,11 @@
 /** How the Cutting Plan is read as text: pure, no Angular, every length in millimetres. */
 
-import type { CutOptimizerInput, UnplacedPart } from './cut-optimizer.calc';
+import type {
+  CutOptimizerInput,
+  LayoutGroup,
+  StockLayout,
+  UnplacedPart,
+} from './cut-optimizer.calc';
 
 export interface UnplacedPartCount {
   readonly name?: string;
@@ -39,4 +44,65 @@ const TRIMMED_ENDS = 2;
 export function longestUsableLength(input: CutOptimizerInput): number {
   const longest = Math.max(...input.stock.map((entry) => entry.lengthMillimetres));
   return Math.max(0, longest - TRIMMED_ENDS * input.settings.trimMillimetres);
+}
+
+/** One Stock of the plan, shown on its own. */
+export interface NumberedLayout {
+  readonly layout: StockLayout;
+  /** Counted from 1 over every Stock in the plan. */
+  readonly position: number;
+}
+
+/**
+ * Expands each group of identical layouts into its individual Stock, so they can be ticked off one by
+ * one: the groups keep their order and each Stock is numbered across the whole plan.
+ */
+export function expandGroups(groups: readonly LayoutGroup[]): NumberedLayout[] {
+  return groups
+    .flatMap(({ layout, count }) => Array.from({ length: count }, () => layout))
+    .map((layout, index) => ({ layout, position: index + 1 }));
+}
+
+/** One stretch of a Stock, in order along it: what the bar of a layout draws. */
+export type LayoutSegment =
+  | {
+      readonly kind: 'part';
+      readonly lengthMillimetres: number;
+      /** Position of the Part in Cut order, from 1. */
+      readonly number: number;
+    }
+  | { readonly kind: 'trim' | 'kerf' | 'offcut' | 'waste'; readonly lengthMillimetres: number };
+
+/** Shorter than this is a rounding remainder, not material. */
+const NOTHING_MILLIMETRES = 1e-9;
+
+/**
+ * Reads a layout along its Stock, start to end: the Trim, each Part in Cut order with the Kerf
+ * after it, the Offcut or Waste left, and the Trim at the other end. The segments add up to the
+ * Stock length, so each one's share of the Stock is its length over that total. A segment with no
+ * length (no Trim, no Kerf, nothing left) is left out.
+ */
+export function layoutSegments(layout: StockLayout, trimMillimetres: number): LayoutSegment[] {
+  const segments: LayoutSegment[] = [];
+  const add = (kind: Exclude<LayoutSegment['kind'], 'part'>, lengthMillimetres: number): void => {
+    if (lengthMillimetres > NOTHING_MILLIMETRES) {
+      segments.push({ kind, lengthMillimetres });
+    }
+  };
+
+  add('trim', trimMillimetres);
+  let end = trimMillimetres;
+  layout.parts.forEach((part, index) => {
+    add('kerf', part.startMillimetres - end);
+    segments.push({ kind: 'part', lengthMillimetres: part.lengthMillimetres, number: index + 1 });
+    end = part.startMillimetres + part.lengthMillimetres;
+  });
+  const { kind, lengthMillimetres } = layout.leftover;
+  if (kind !== 'none') {
+    const remaining = layout.stockLengthMillimetres - trimMillimetres - end;
+    add('kerf', remaining - lengthMillimetres);
+    add(kind, lengthMillimetres);
+  }
+  add('trim', trimMillimetres);
+  return segments;
 }

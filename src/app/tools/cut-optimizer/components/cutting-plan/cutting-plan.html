@@ -1,8 +1,26 @@
 @let plan = view();
 
 <section id="cutting-plan" aria-labelledby="plan-title">
+  <!-- Always on the page, so a screen reader announces the message when it appears. -->
+  <div role="status">
+    @if (outOfDate()) {
+      <p id="plan-out-of-date-message">
+        <wt-icon name="triangle-exclamation-point" />
+        <span>
+          <strong>{{ 'cutOptimizer.plan.outOfDate.title' | transloco }}</strong>
+          {{ 'cutOptimizer.plan.outOfDate.message' | transloco }}
+        </span>
+      </p>
+    }
+  </div>
+
   <div #summary id="plan-summary" tabindex="-1" role="group" aria-labelledby="plan-title">
-    <h2 id="plan-title">{{ 'cutOptimizer.plan.title' | transloco }}</h2>
+    <div id="plan-heading">
+      <h2 id="plan-title">{{ 'cutOptimizer.plan.title' | transloco }}</h2>
+      @if (outOfDate()) {
+        <span id="plan-out-of-date">{{ 'cutOptimizer.plan.outOfDate.badge' | transloco }}</span>
+      }
+    </div>
 
     <dl>
       <div>
@@ -79,24 +97,60 @@
     </section>
   }
 
-  @if (plan.groups.length > 0) {
+  @if (plan.layouts.length > 0) {
     <section id="layouts" aria-labelledby="layouts-title">
-      <h3 id="layouts-title">{{ 'cutOptimizer.plan.layouts.title' | transloco }}</h3>
+      <div id="layouts-header">
+        <h3 id="layouts-title">{{ 'cutOptimizer.plan.layouts.title' | transloco }}</h3>
+        <wt-checkbox
+          [label]="'cutOptimizer.plan.layouts.showEveryStock' | transloco"
+          [(checked)]="showEveryStock"
+        />
+      </div>
 
-      @for (group of plan.groups; track $index; let n = $index) {
+      <wt-stock-bar-legend
+        [labels]="{
+          part: 'cutOptimizer.plan.layouts.bar.legend.part' | transloco,
+          kerf: 'cutOptimizer.plan.layouts.bar.legend.kerf' | transloco,
+          trim: 'cutOptimizer.plan.layouts.bar.legend.trim' | transloco,
+          offcut: 'cutOptimizer.plan.layouts.bar.legend.offcut' | transloco,
+          waste: 'cutOptimizer.plan.layouts.bar.legend.waste' | transloco,
+        }"
+      />
+
+      @for (layout of plan.layouts; track $index; let n = $index) {
         <article [attr.aria-labelledby]="'layout-' + n + '-title'">
           <h4 [id]="'layout-' + n + '-title'">
-            {{
-              'cutOptimizer.plan.layouts.heading'
-                | transloco: { count: group.count, length: group.stockLength }
-            }}
+            @switch (layout.kind) {
+              @case ('group') {
+                {{
+                  'cutOptimizer.plan.layouts.groupHeading'
+                    | transloco: { count: layout.count, length: layout.stockLength }
+                }}
+              }
+              @case ('stock') {
+                {{
+                  'cutOptimizer.plan.layouts.stockHeading'
+                    | transloco
+                      : {
+                          position: layout.position,
+                          total: plan.stockTotal,
+                          length: layout.stockLength,
+                        }
+                }}
+              }
+            }
           </h4>
+
+          <wt-stock-bar
+            [segments]="layout.bar"
+            [offcutTerm]="'cutOptimizer.plan.layouts.bar.offcut' | transloco"
+          />
 
           <p [id]="'layout-' + n + '-cut-order'">
             {{ 'cutOptimizer.plan.layouts.cutOrder' | transloco }}
           </p>
           <ol [attr.aria-labelledby]="'layout-' + n + '-cut-order'">
-            @for (part of group.parts; track $index) {
+            @for (part of layout.parts; track $index) {
               <li>
                 @if (part.name !== undefined) {
                   <span>{{ part.name }}</span
@@ -110,16 +164,16 @@
           <dl>
             <div>
               <dt>{{ 'cutOptimizer.plan.layouts.cuts' | transloco }}</dt>
-              <dd>{{ group.cuts }}</dd>
+              <dd>{{ layout.cuts }}</dd>
             </div>
             <div>
               <dt>{{ 'cutOptimizer.plan.layouts.trim' | transloco }}</dt>
               <dd>
-                @if (group.trim === undefined) {
+                @if (layout.trim === undefined) {
                   {{ 'cutOptimizer.plan.layouts.none' | transloco }}
                 } @else {
                   {{
-                    'cutOptimizer.plan.layouts.trimAtEachEnd' | transloco: { length: group.trim }
+                    'cutOptimizer.plan.layouts.trimAtEachEnd' | transloco: { length: layout.trim }
                   }}
                 }
               </dd>
@@ -127,12 +181,12 @@
             <div>
               <dt>{{ 'cutOptimizer.plan.layouts.leftover' | transloco }}</dt>
               <dd>
-                @switch (group.leftover.kind) {
+                @switch (layout.leftover.kind) {
                   @case ('offcut') {
-                    {{ 'cutOptimizer.plan.layouts.offcut' | transloco: group.leftover }}
+                    {{ 'cutOptimizer.plan.layouts.offcut' | transloco: layout.leftover }}
                   }
                   @case ('waste') {
-                    {{ 'cutOptimizer.plan.layouts.waste' | transloco: group.leftover }}
+                    {{ 'cutOptimizer.plan.layouts.waste' | transloco: layout.leftover }}
                   }
                   @case ('none') {
                     {{ 'cutOptimizer.plan.layouts.leftoverNone' | transloco }}

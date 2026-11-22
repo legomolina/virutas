@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { generateCuttingPlan } from './cutting-plan';
 
 test.use({ locale: 'en-US' });
 
@@ -114,6 +115,117 @@ test.describe('the Cut List', () => {
   });
 });
 
+test.describe('the Cutting Plan', () => {
+  test('is built in a Web Worker and takes focus once it is shown', async ({ page }) => {
+    const workers: string[] = [];
+    page.on('worker', (worker) => workers.push(worker.url()));
+    await page.goto('/cut-optimizer');
+    await page
+      .getByRole('region', { name: 'Stock' })
+      .getByRole('group', { name: 'Stock 1' })
+      .getByLabel('Length')
+      .fill('2400 mm');
+    const part1 = page
+      .getByRole('region', { name: 'Cut List' })
+      .getByRole('group', { name: 'Part 1' });
+    await part1.getByLabel('Name (optional)').fill('leg');
+    await part1.getByLabel('Length').fill('720 mm');
+    await part1.getByLabel('Quantity').fill('6');
+
+    await page.getByRole('button', { name: 'Generate Cutting Plan' }).click();
+
+    const summary = page.getByRole('group', { name: 'Cutting Plan' });
+    await expect(summary).toBeFocused();
+    await expect(summary).toContainText('2 in total');
+    expect(workers).toEqual([expect.stringMatching(/cut-optimizer.*worker|worker-/u)]);
+  });
+
+  test('"Show every Stock" expands and collapses the layouts from the keyboard', async ({
+    page,
+  }) => {
+    await page.goto('/cut-optimizer');
+    await page.getByRole('region', { name: 'Stock' }).getByLabel('Length').fill('2400 mm');
+    const cutList = page.getByRole('region', { name: 'Cut List' });
+    const legs = cutList.getByRole('group', { name: 'Part 1' });
+    await legs.getByLabel('Name (optional)').fill('leg');
+    await legs.getByLabel('Length').fill('800 mm');
+    await legs.getByLabel('Quantity').fill('6');
+    await cutList.getByRole('button', { name: 'Add Part' }).click();
+    const rails = cutList.getByRole('group', { name: 'Part 2' });
+    await rails.getByLabel('Name (optional)').fill('rail');
+    await rails.getByLabel('Length').fill('700 mm');
+    await rails.getByLabel('Quantity').fill('3');
+    await page.getByRole('button', { name: 'Generate Cutting Plan' }).click();
+
+    const layouts = page.getByRole('region', { name: 'Layouts' });
+    const headings = layouts.getByRole('heading', { level: 4 });
+    const toggle = layouts.getByRole('checkbox', { name: 'Show every Stock' });
+    await expect(headings).toHaveCount(1);
+
+    await page.keyboard.press('Tab');
+    await expect(toggle).toBeFocused();
+    await page.keyboard.press('Space');
+
+    await expect(toggle).toBeChecked();
+    await expect(headings).toHaveCount(3);
+    await expect(headings).toHaveText([
+      'Stock 1 of 3 · ≈ 94 1/2"',
+      'Stock 2 of 3 · ≈ 94 1/2"',
+      'Stock 3 of 3 · ≈ 94 1/2"',
+    ]);
+
+    await page.keyboard.press('Space');
+
+    await expect(toggle).not.toBeChecked();
+    await expect(headings).toHaveCount(1);
+  });
+
+  test('draws each Part and Offcut as wide as its share of the Stock', async ({ page }) => {
+    await page.goto('/cut-optimizer');
+    await generateCuttingPlan(page);
+    const bars = page.locator('article wt-stock-bar');
+    await expect(bars.first()).toBeVisible();
+
+    // Kerf, Trim and Waste have a minimum width; every other segment shares what is left by its
+    // length (its flex-grow). How far, in pixels, each one is from its exact share:
+    const offsets = await bars.evaluateAll((elements) =>
+      elements.flatMap((bar) => {
+        const segments = [
+          ...bar.querySelectorAll<HTMLElement>('[data-kind="part"], [data-kind="offcut"]'),
+        ].map((segment) => ({
+          length: Number(segment.style.flexGrow),
+          width: segment.getBoundingClientRect().width,
+        }));
+        const pixelsPerUnit =
+          segments.reduce((sum, { width }) => sum + width, 0) /
+          segments.reduce((sum, { length }) => sum + length, 0);
+        return segments.map(({ length, width }) => Math.abs(width - length * pixelsPerUnit));
+      }),
+    );
+
+    expect(offsets.length).toBeGreaterThan(4);
+    expect(Math.max(...offsets)).toBeLessThan(1);
+  });
+
+  test('keeps Kerf, Trim and Waste visible however short they are', async ({ page }) => {
+    await page.goto('/cut-optimizer');
+    await generateCuttingPlan(page);
+    await expect(page.locator('article wt-stock-bar').first()).toBeVisible();
+
+    const narrowest = (kind: string): Promise<number> =>
+      page
+        .locator(`article wt-stock-bar [data-kind="${kind}"]`)
+        .evaluateAll((segments) =>
+          Math.min(...segments.map((segment) => segment.getBoundingClientRect().width)),
+        );
+
+    // A 3 mm Kerf, 5 mm Trim and a few mm of Waste are well under a pixel per mm of their Stock.
+    expect(await narrowest('kerf')).toBeGreaterThanOrEqual(2);
+    expect(await narrowest('trim')).toBeGreaterThanOrEqual(5);
+    expect(await narrowest('waste')).toBeGreaterThanOrEqual(4);
+  });
+});
+
 test('the job and its Cutting Plan are still there after visiting the home page and coming back', async ({
   page,
 }) => {
@@ -147,6 +259,7 @@ test('the job and its Cutting Plan are still there after visiting the home page 
   await expect(part1.getByLabel('Name (optional)')).toHaveValue('leg');
   await expect(part1.getByLabel('Quantity')).toHaveValue('3');
   await expect(cuttingPlan).toBeVisible();
+  await expect(cuttingPlan.getByText('Out of date', { exact: true })).toHaveCount(0);
 
   await page.reload();
 

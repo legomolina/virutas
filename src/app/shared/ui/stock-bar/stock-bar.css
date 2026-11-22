@@ -1,0 +1,160 @@
+:host {
+  display: block;
+  color: var(--ink);
+}
+
+/*
+ * Forced colours would drop the fills and hatches that tell the kinds apart: draw them in the
+ * user's system colours instead.
+ */
+@media (forced-colors: active) {
+  :host {
+    --ink: CanvasText;
+    --maple: Canvas;
+    --surface-raised: Canvas;
+    --surface-sunken: Canvas;
+
+    forced-color-adjust: none;
+  }
+}
+
+.segments {
+  overflow: hidden;
+  display: flex;
+
+  block-size: 56px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-sm);
+
+  background-color: var(--surface-raised);
+}
+
+/* No border or padding: they would add to the width and break the proportions. */
+[data-kind] {
+  overflow: hidden;
+  display: flex;
+  flex: 0 1 0;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+  min-inline-size: 0;
+
+  text-align: center;
+
+  print-color-adjust: exact;
+}
+
+[data-kind='part'] {
+  background-color: var(--maple);
+  box-shadow:
+    inset 1px 0 var(--ink),
+    inset -1px 0 var(--ink);
+}
+
+[data-kind='kerf'] {
+  min-inline-size: 2px;
+  background-color: var(--ink);
+}
+
+[data-kind='trim'] {
+  min-inline-size: 5px;
+  background-color: var(--surface-raised);
+  background-image: repeating-linear-gradient(45deg, var(--ink) 0 1px, transparent 1px 5px);
+  box-shadow:
+    inset 1px 0 var(--ink),
+    inset -1px 0 var(--ink);
+}
+
+[data-kind='offcut'] {
+  background-color: var(--surface-raised);
+  outline: 2px dashed var(--ink);
+  outline-offset: -2px;
+}
+
+[data-kind='waste'] {
+  min-inline-size: 4px;
+  background-color: var(--surface-sunken);
+  background-image:
+    repeating-linear-gradient(45deg, var(--ink) 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(-45deg, var(--ink) 0 1px, transparent 1px 5px);
+  box-shadow:
+    inset 1px 0 var(--ink),
+    inset -1px 0 var(--ink);
+}
+
+/*
+ * A row that shows its label only when the label fits: the zero-width ::before takes the first
+ * line, so a label too wide to sit next to it wraps onto a second line, which is clipped.
+ */
+.row {
+  overflow: hidden;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+
+  box-sizing: border-box;
+  inline-size: 100%;
+  block-size: 24px;
+  padding-inline: 2px;
+}
+
+.row::before {
+  content: '';
+  block-size: 100%;
+}
+
+.number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+  min-inline-size: 24px;
+  block-size: 24px;
+  padding-inline: var(--space-1);
+  border: 1px solid var(--ink);
+
+  font: var(--text-value);
+  line-height: 1;
+
+  background-color: var(--surface-raised);
+}
+
+.label {
+  font: var(--text-value);
+  white-space: nowrap;
+}
+
+.term {
+  font: var(--text-label);
+  line-height: 24px;
+  white-space: nowrap;
+}
+
+/* The numbers of Parts too short to hold them, under the bar at the middle of their Part. */
+[data-markers] {
+  position: relative;
+  block-size: 34px;
+}
+
+[data-marker] {
+  position: absolute;
+  inset-block-start: 0;
+  transform: translateX(-50%);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  print-color-adjust: exact;
+}
+
+[data-marker]::before {
+  content: '';
+  inline-size: 1px;
+  block-size: 8px;
+  background-color: var(--ink);
+}

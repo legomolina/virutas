@@ -1,4 +1,13 @@
-import { afterNextRender, Component, computed, inject, Injector, viewChild } from '@angular/core';
+import {
+  afterNextRender,
+  Component,
+  computed,
+  inject,
+  Injector,
+  PendingTasks,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { SettingsStore } from '../../core/settings/settings-store';
 import { Button } from '../../shared/ui/button/button';
@@ -6,9 +15,9 @@ import { CutListSection } from './components/cut-list-section/cut-list-section';
 import { CuttingPlanView } from './components/cutting-plan/cutting-plan';
 import { JobSettingsSection } from './components/job-settings-section/job-settings-section';
 import { StockSection } from './components/stock-section/stock-section';
-import { planCuts } from './cut-optimizer.calc';
 import { CutOptimizerStore } from './cut-optimizer.store';
 import { readCuttingPlanRequest } from './cutting-plan-request.calc';
+import { CUTTING_PLANNER } from './cutting-planner';
 import { editableLength } from './editable-length';
 import type { JobSettingsTexts } from './job-settings.calc';
 
@@ -31,6 +40,8 @@ export default class CutOptimizerPage {
   /** The job, kept for the session so it is still here when the woodworker comes back. */
   protected readonly job = inject(CutOptimizerStore);
   private readonly injector = inject(Injector);
+  private readonly pendingTasks = inject(PendingTasks);
+  private readonly planner = inject(CUTTING_PLANNER);
 
   private readonly cuttingPlan = viewChild(CuttingPlanView);
 
@@ -72,13 +83,44 @@ export default class CutOptimizerPage {
     ),
   );
 
-  /** Builds the Cutting Plan from the current input and moves focus to its summary. */
-  protected generate(): void {
+  /**
+   * Where generating stands: `building` while a Cutting Plan is built (it cannot be generated
+   * again meanwhile), `failed` when the last one could not be built.
+   */
+  protected readonly generation = signal<'idle' | 'building' | 'failed'>('idle');
+
+  /** The messages that explain the Generate action: why it is blocked, or that it failed. */
+  protected readonly generateDescription = computed(() => {
+    const ids = [
+      ...(this.request().ok ? [] : ['generate-blocked']),
+      ...(this.generation() === 'failed' ? ['generate-failed'] : []),
+    ];
+    return ids.length > 0 ? ids.join(' ') : null;
+  });
+
+  /**
+   * Builds the Cutting Plan from the current input and moves focus to its summary. The plan is
+   * a pending task, so the page is not stable until it arrives. When it cannot be built, the
+   * previous plan is dropped, since it no longer matches what was asked for. The input is noted
+   * before building, so a change made meanwhile marks the new plan out of date.
+   */
+  protected async generate(): Promise<void> {
     const request = this.request();
-    if (!request.ok) {
+    if (!request.ok || this.generation() === 'building') {
       return;
     }
-    this.job.keepCuttingPlan(planCuts(request.input), request.input);
-    afterNextRender(() => this.cuttingPlan()?.focusSummary(), { injector: this.injector });
+    const inputSnapshot = this.job.inputSnapshot();
+    this.generation.set('building');
+    const done = this.pendingTasks.add();
+    try {
+      this.job.keepCuttingPlan(await this.planner(request.input), request.input, inputSnapshot);
+      this.generation.set('idle');
+      afterNextRender(() => this.cuttingPlan()?.focusSummary(), { injector: this.injector });
+    } catch {
+      this.job.dropCuttingPlan();
+      this.generation.set('failed');
+    } finally {
+      done();
+    }
   }
 }

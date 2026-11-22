@@ -7,9 +7,51 @@ import optimizerEn from '../../../../public/i18n/cut-optimizer/en.json';
 import optimizerEs from '../../../../public/i18n/cut-optimizer/es.json';
 import { expectNoAxeViolations } from '../../../testing/expect-no-axe-violations';
 import { translocoTesting } from '../../../testing/transloco-testing';
+import type { CutOptimizerInput, CuttingPlan } from './cut-optimizer.calc';
+import { planCuts } from './cut-optimizer.calc';
 import CutOptimizerPage from './cut-optimizer.page';
+import type { CuttingPlanner } from './cutting-planner';
+import { CUTTING_PLANNER } from './cutting-planner';
 
-function render(): ComponentFixture<CutOptimizerPage> {
+/** Runs the engine in-process: jsdom has no Web Worker. */
+const planCutsInProcess: CuttingPlanner = async (input) => Promise.resolve(planCuts(input));
+
+interface HeldRequest {
+  readonly input: CutOptimizerInput;
+  readonly resolve: (plan: CuttingPlan) => void;
+  readonly reject: (reason: Error) => void;
+}
+
+/** A planner that holds each request until the test answers it or makes it fail. */
+class HeldPlanner {
+  readonly requests: HeldRequest[] = [];
+
+  readonly plan: CuttingPlanner = async (input) =>
+    new Promise((resolve, reject) => {
+      this.requests.push({ input, resolve, reject });
+    });
+
+  /** Answers the oldest request with the engine's plan. */
+  answer(): void {
+    const request = this.next();
+    request.resolve(planCuts(request.input));
+  }
+
+  /** Makes the oldest request fail. */
+  fail(): void {
+    this.next().reject(new Error('The worker failed.'));
+  }
+
+  private next(): HeldRequest {
+    const request = this.requests.shift();
+    if (!request) {
+      throw new Error('No request to answer.');
+    }
+    return request;
+  }
+}
+
+function render(planner: CuttingPlanner = planCutsInProcess): ComponentFixture<CutOptimizerPage> {
   TestBed.configureTestingModule({
     imports: [
       translocoTesting({
@@ -17,7 +59,7 @@ function render(): ComponentFixture<CutOptimizerPage> {
         'cut-optimizer/es': optimizerEs,
       }),
     ],
-    providers: [provideRouter([])],
+    providers: [provideRouter([]), { provide: CUTTING_PLANNER, useValue: planner }],
   });
   TestBed.inject(SettingsStore).setUnitSystem('metric');
   return TestBed.createComponent(CutOptimizerPage);
@@ -205,6 +247,17 @@ function layouts(fixture: ComponentFixture<CutOptimizerPage>): string[][] {
       [...item.children].map((child) => textOf(child)).join(' '),
     ),
   ]);
+}
+
+/** Each layout's bar, as its segments `[kind, flex-grow, labels]`. */
+function bars(fixture: ComponentFixture<CutOptimizerPage>): [string | null, string, string][][] {
+  return [...plan(fixture).querySelectorAll('article wt-stock-bar')].map((bar) =>
+    [...bar.querySelectorAll<HTMLElement>('[data-kind]')].map((segment) => [
+      segment.getAttribute('data-kind'),
+      segment.style.flexGrow,
+      [...segment.children].map((child) => textOf(child)).join(' | '),
+    ]),
+  );
 }
 
 function unplacedParts(fixture: ComponentFixture<CutOptimizerPage>): string[] {
@@ -1108,6 +1161,125 @@ describe('CutOptimizerPage', () => {
       expect(totals(fixture)[2]).toEqual(['Offcuts to keep', 'None']);
     });
 
+    it('draws a bar of each layout under its heading, sized and labelled like its text', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, ...legsAndShelf);
+
+      await press(fixture, generateButton(fixture));
+
+      for (const article of plan(fixture).querySelectorAll('article')) {
+        expect(article.querySelector('h4 + wt-stock-bar')).not.toBeNull();
+      }
+      expect(bars(fixture)).toEqual([
+        [
+          ['part', '2000', '1 | 2000 mm'],
+          ['kerf', '3', ''],
+          ['offcut', '397', 'Offcut | 397 mm'],
+        ],
+        [
+          ['part', '720', '1 | 720 mm'],
+          ['kerf', '3', ''],
+          ['part', '720', '2 | 720 mm'],
+          ['kerf', '3', ''],
+          ['part', '720', '3 | 720 mm'],
+          ['kerf', '3', ''],
+          ['waste', '231', ''],
+        ],
+      ]);
+    });
+
+    it('draws the Trim at both ends and moves the number of a very short Part under the bar', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(
+        fixture,
+        [['2400', '']],
+        [
+          ['rail', '900', '2'],
+          ['stile', '540', '1'],
+          ['spacer', '30', '1'],
+        ],
+      );
+      await type(fixture, field(jobSettings(fixture), 'Trim at each end'), '5');
+
+      await press(fixture, generateButton(fixture));
+
+      // 5 + 900 + 3 + 900 + 3 + 540 + 3 + 30 + 3 + 8 + 5 = 2 400 mm; the spacer is 1.25 % of it.
+      expect(bars(fixture)).toEqual([
+        [
+          ['trim', '5', ''],
+          ['part', '900', '1 | 900 mm'],
+          ['kerf', '3', ''],
+          ['part', '900', '2 | 900 mm'],
+          ['kerf', '3', ''],
+          ['part', '540', '3 | 540 mm'],
+          ['kerf', '3', ''],
+          ['part', '30', ''],
+          ['kerf', '3', ''],
+          ['waste', '8', ''],
+          ['trim', '5', ''],
+        ],
+      ]);
+      expect(textOf(plan(fixture).querySelector('article wt-stock-bar [data-marker]'))).toBe('4');
+      expect(layouts(fixture)[0]).toContain('spacer 30 mm');
+    });
+
+    it('keeps drawing the Trim the plan was generated with when the Trim changes', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, [['2400', '']], [['leg', '720', '1']]);
+      await type(fixture, field(jobSettings(fixture), 'Trim at each end'), '5');
+      await press(fixture, generateButton(fixture));
+
+      await type(fixture, field(jobSettings(fixture), 'Trim at each end'), '10');
+
+      expect(bars(fixture)[0].filter(([kind]) => kind === 'trim')).toEqual([
+        ['trim', '5', ''],
+        ['trim', '5', ''],
+      ]);
+    });
+
+    it('explains the bars once, above the layouts', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, ...legsAndShelf);
+
+      await press(fixture, generateButton(fixture));
+
+      const legends = plan(fixture).querySelectorAll('section#layouts wt-stock-bar-legend');
+      expect(legends).toHaveLength(1);
+      expect([...legends[0].querySelectorAll('li')].map((item) => textOf(item))).toEqual([
+        '1 Part, numbered in Cut order',
+        'Kerf',
+        'Trim',
+        'Offcut, keep it',
+        'Waste',
+      ]);
+      expect(legends[0].nextElementSibling?.tagName).toBe('ARTICLE');
+    });
+
+    it('labels the bars and their legend in Spanish', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, ...legsAndShelf);
+      await press(fixture, generateButton(fixture));
+
+      TestBed.inject(TranslocoService).setActiveLang('es');
+      await fixture.whenStable();
+
+      expect(bars(fixture)[0][2]).toEqual(['offcut', '397', 'Retal | 397 mm']);
+      expect(
+        [...plan(fixture).querySelectorAll('wt-stock-bar-legend li')].map((item) => textOf(item)),
+      ).toEqual([
+        '1 Pieza, numerada en orden de corte',
+        'Grosor de corte',
+        'Saneado',
+        'Retal, guárdalo',
+        'Desperdicio',
+      ]);
+    });
+
     it('lists the Unplaced Parts with their reason above a partial plan', async () => {
       const fixture = render();
       await fixture.whenStable();
@@ -1164,6 +1336,135 @@ describe('CutOptimizerPage', () => {
       expect(summary?.getAttribute('role')).toBe('group');
       const name = summary?.getAttribute('aria-labelledby') ?? '';
       expect(textOf(root(fixture).querySelector(`#${name}`))).toBe('Cutting Plan');
+    });
+
+    /** The page with a planner that holds each Cutting Plan, its input already typed. */
+    async function renderHeld(): Promise<{
+      fixture: ComponentFixture<CutOptimizerPage>;
+      planner: HeldPlanner;
+    }> {
+      const planner = new HeldPlanner();
+      const fixture = render(planner.plan);
+      await fixture.whenStable();
+      await fill(fixture, ...legsAndShelf);
+      return { fixture, planner };
+    }
+
+    /** Presses Generate from the keyboard's point of view, without waiting for the plan. */
+    function startGenerating(fixture: ComponentFixture<CutOptimizerPage>, name?: string): void {
+      const generate = generateButton(fixture, name);
+      generate.focus();
+      generate.click();
+      fixture.detectChanges();
+    }
+
+    function status(fixture: ComponentFixture<CutOptimizerPage>): string {
+      return textOf(root(fixture).querySelector('[role="status"]'));
+    }
+
+    it('says the Cutting Plan is being built, and cannot be generated again meanwhile', async () => {
+      const { fixture, planner } = await renderHeld();
+      expect(status(fixture)).toBe('');
+
+      startGenerating(fixture);
+
+      const generate = generateButton(fixture);
+      expect(generate.getAttribute('aria-disabled')).toBe('true');
+      expect(document.activeElement).toBe(generate);
+      expect(status(fixture)).toBe('Building the Cutting Plan…');
+      generate.click();
+      fixture.detectChanges();
+      expect(planner.requests).toHaveLength(1);
+
+      planner.answer();
+      await fixture.whenStable();
+
+      expect(generateButton(fixture).getAttribute('aria-disabled')).toBeNull();
+      expect(status(fixture)).toBe('');
+      expect(totals(fixture)[0]).toEqual(['Stock used', '3 in total', '3 × 2400 mm']);
+      expect(document.activeElement).toBe(plan(fixture).querySelector('#plan-summary'));
+    });
+
+    it('marks the plan out of date when the input changes while it is built', async () => {
+      const { fixture, planner } = await renderHeld();
+      startGenerating(fixture);
+
+      // The page is not stable while the plan is built, so the change is not awaited.
+      const kerf = field(jobSettings(fixture), 'Kerf');
+      kerf.value = '4';
+      kerf.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      planner.answer();
+      await fixture.whenStable();
+
+      expect(totals(fixture)[0]).toEqual(['Stock used', '3 in total', '3 × 2400 mm']);
+      expect(textOf(plan(fixture).querySelector('#plan-out-of-date'))).toBe('Out of date');
+    });
+
+    it('says when the Cutting Plan could not be built, and can be generated again', async () => {
+      const { fixture, planner } = await renderHeld();
+
+      startGenerating(fixture);
+      planner.fail();
+      await fixture.whenStable();
+
+      const generate = generateButton(fixture);
+      expect(generate.getAttribute('aria-disabled')).toBeNull();
+      expect(document.activeElement).toBe(generate);
+      expect(alerts(fixture)).toEqual(['The Cutting Plan could not be built. Try again.']);
+      expect(description(fixture, generate)).toEqual([
+        'The Cutting Plan could not be built. Try again.',
+      ]);
+      expect(status(fixture)).toBe('');
+      expect(root(fixture).querySelector('section#cutting-plan')).toBeNull();
+
+      startGenerating(fixture);
+      planner.answer();
+      await fixture.whenStable();
+
+      expect(alerts(fixture)).toEqual([]);
+      expect(generateButton(fixture).getAttribute('aria-describedby')).toBeNull();
+      expect(totals(fixture)[0]).toEqual(['Stock used', '3 in total', '3 × 2400 mm']);
+    });
+
+    it('drops the previous Cutting Plan when the next one could not be built', async () => {
+      const { fixture, planner } = await renderHeld();
+      startGenerating(fixture);
+      planner.answer();
+      await fixture.whenStable();
+
+      startGenerating(fixture);
+      planner.fail();
+      await fixture.whenStable();
+
+      expect(alerts(fixture)).toEqual(['The Cutting Plan could not be built. Try again.']);
+      expect(root(fixture).querySelector('section#cutting-plan')).toBeNull();
+      expect(textOf(root(fixture).querySelector('#plan-placeholder'))).toBe(
+        'Your Cutting Plan appears here once you generate it.',
+      );
+    });
+
+    it('says in Spanish that the Cutting Plan is being built, or could not be', async () => {
+      const { fixture, planner } = await renderHeld();
+      TestBed.inject(TranslocoService).setActiveLang('es');
+      await fixture.whenStable();
+
+      startGenerating(fixture, 'Generar plan de corte');
+      expect(status(fixture)).toBe('Generando el plan de corte…');
+      planner.fail();
+      await fixture.whenStable();
+
+      expect(alerts(fixture)).toEqual([
+        'No se ha podido generar el plan de corte. Vuelve a intentarlo.',
+      ]);
+    });
+
+    it('has no accessibility violations while the Cutting Plan is being built', async () => {
+      const { fixture } = await renderHeld();
+
+      startGenerating(fixture);
+
+      await expectNoAxeViolations(root(fixture));
     });
 
     it('separates each Part name from its length in the Cut order', async () => {
@@ -1267,6 +1568,148 @@ describe('CutOptimizerPage', () => {
       await expectNoAxeViolations(root(fixture));
     });
 
+    describe('Show every Stock', () => {
+      /** Three identical Stock of leg, leg, rail: two legs and a rail fill a Stock, three legs don't fit. */
+      const legsAndRails = [
+        [['2400', '']],
+        [
+          ['leg', '800', '6'],
+          ['rail', '700', '3'],
+        ],
+      ] as const;
+
+      const legLegRail = ['leg 800 mm', 'leg 800 mm', 'rail 700 mm', 'Cuts 3', 'Trim None'];
+
+      function toggle(
+        fixture: ComponentFixture<CutOptimizerPage>,
+        name = 'Show every Stock',
+      ): HTMLInputElement {
+        return field(plan(fixture), name);
+      }
+
+      async function click(
+        fixture: ComponentFixture<CutOptimizerPage>,
+        input: HTMLInputElement,
+      ): Promise<void> {
+        input.click();
+        await fixture.whenStable();
+      }
+
+      it('is an unchecked, labelled checkbox: the layouts start grouped', async () => {
+        const fixture = render();
+        await fixture.whenStable();
+        await fill(fixture, ...legsAndRails);
+
+        await press(fixture, generateButton(fixture));
+
+        expect(toggle(fixture).type).toBe('checkbox');
+        expect(toggle(fixture).checked).toBe(false);
+        expect(layouts(fixture).map(([heading]) => heading)).toEqual(['3× Stock 2400 mm']);
+        expect(layouts(fixture)[0]?.slice(1, 6)).toEqual(legLegRail);
+      });
+
+      it('expands a group into its individual Stock and collapses them back', async () => {
+        const fixture = render();
+        await fixture.whenStable();
+        await fill(fixture, ...legsAndRails);
+        await press(fixture, generateButton(fixture));
+
+        await click(fixture, toggle(fixture));
+
+        expect(toggle(fixture).checked).toBe(true);
+        expect(layouts(fixture).map(([heading]) => heading)).toEqual([
+          'Stock 1 of 3 · 2400 mm',
+          'Stock 2 of 3 · 2400 mm',
+          'Stock 3 of 3 · 2400 mm',
+        ]);
+        for (const layout of layouts(fixture)) {
+          expect(layout.slice(1, 6)).toEqual(legLegRail);
+        }
+
+        await click(fixture, toggle(fixture));
+
+        expect(toggle(fixture).checked).toBe(false);
+        expect(layouts(fixture).map(([heading]) => heading)).toEqual(['3× Stock 2400 mm']);
+      });
+
+      it('numbers every Stock across the groups, in group order', async () => {
+        const fixture = render();
+        await fixture.whenStable();
+        await fill(fixture, ...legsAndShelf);
+        await press(fixture, generateButton(fixture));
+
+        await click(fixture, toggle(fixture));
+
+        expect(layouts(fixture).map(([heading, firstPart]) => [heading, firstPart])).toEqual([
+          ['Stock 1 of 3 · 2400 mm', 'shelf 2000 mm'],
+          ['Stock 2 of 3 · 2400 mm', 'leg 720 mm'],
+          ['Stock 3 of 3 · 2400 mm', 'leg 720 mm'],
+        ]);
+      });
+
+      it('gives every layout its own heading and Cut order', async () => {
+        const fixture = render();
+        await fixture.whenStable();
+        await fill(fixture, ...legsAndRails);
+        await press(fixture, generateButton(fixture));
+
+        await click(fixture, toggle(fixture));
+
+        const articles = [...plan(fixture).querySelectorAll('article')];
+        const ids = articles.flatMap((article) => [
+          article.getAttribute('aria-labelledby'),
+          article.querySelector('ol')?.getAttribute('aria-labelledby'),
+        ]);
+        expect(new Set(ids).size).toBe(6);
+        expect(
+          articles.map((article) =>
+            textOf(root(fixture).querySelector(`#${article.getAttribute('aria-labelledby')}`)),
+          ),
+        ).toEqual(['Stock 1 of 3 · 2400 mm', 'Stock 2 of 3 · 2400 mm', 'Stock 3 of 3 · 2400 mm']);
+      });
+
+      it('stays as it is when the plan is generated again', async () => {
+        const fixture = render();
+        await fixture.whenStable();
+        await fill(fixture, ...legsAndRails);
+        await press(fixture, generateButton(fixture));
+        await click(fixture, toggle(fixture));
+
+        await press(fixture, generateButton(fixture));
+
+        expect(toggle(fixture).checked).toBe(true);
+        expect(layouts(fixture)).toHaveLength(3);
+      });
+
+      it('is in Spanish', async () => {
+        const fixture = render();
+        await fixture.whenStable();
+        await fill(fixture, ...legsAndRails);
+        TestBed.inject(TranslocoService).setActiveLang('es');
+        await fixture.whenStable();
+        await press(fixture, generateButton(fixture, 'Generar plan de corte'));
+
+        await click(fixture, toggle(fixture, 'Mostrar cada material por separado'));
+
+        expect(layouts(fixture).map(([heading]) => heading)).toEqual([
+          'Material 1 de 3 · 2400 mm',
+          'Material 2 de 3 · 2400 mm',
+          'Material 3 de 3 · 2400 mm',
+        ]);
+      });
+
+      it('has no accessibility violations grouped or expanded', async () => {
+        const fixture = render();
+        await fixture.whenStable();
+        await fill(fixture, ...legsAndRails);
+        await press(fixture, generateButton(fixture));
+
+        await expectNoAxeViolations(root(fixture));
+        await click(fixture, toggle(fixture));
+        await expectNoAxeViolations(root(fixture));
+      });
+    });
+
     it('has no accessibility violations with Unplaced Parts', async () => {
       const fixture = render();
       await fixture.whenStable();
@@ -1274,6 +1717,206 @@ describe('CutOptimizerPage', () => {
       await press(fixture, generateButton(fixture));
 
       await expectNoAxeViolations(root(fixture));
+    });
+
+    describe('out of date', () => {
+      const outOfDateMessage =
+        'Out of date. You changed the Stock, Cut List or job settings after generating this Cutting Plan. Generate it again before you cut.';
+
+      /** The polite live region of the Cutting Plan. */
+      function planStatus(fixture: ComponentFixture<CutOptimizerPage>): HTMLElement {
+        const found = plan(fixture).querySelector<HTMLElement>('[role="status"]');
+        if (!found) {
+          throw new Error('No status in the Cutting Plan.');
+        }
+        return found;
+      }
+
+      /** What says the plan is out of date: the live region's text and the mark by the heading. */
+      function outOfDate(fixture: ComponentFixture<CutOptimizerPage>): string[] {
+        return [
+          textOf(planStatus(fixture)),
+          textOf(plan(fixture).querySelector('#plan-out-of-date')),
+        ];
+      }
+
+      const marked = [outOfDateMessage, 'Out of date'];
+      const unmarked = ['', ''];
+
+      async function generated(): Promise<ComponentFixture<CutOptimizerPage>> {
+        const fixture = render();
+        await fixture.whenStable();
+        await fill(fixture, ...legsAndShelf);
+        await press(fixture, generateButton(fixture));
+        return fixture;
+      }
+
+      const edits: readonly [
+        string,
+        (fixture: ComponentFixture<CutOptimizerPage>) => Promise<void>,
+      ][] = [
+        [
+          'changing a Stock length',
+          async (fixture): Promise<void> =>
+            type(fixture, field(stockEntry(fixture, 'Stock 1'), 'Length'), '2440'),
+        ],
+        [
+          'changing a Stock quantity',
+          async (fixture): Promise<void> =>
+            type(fixture, field(stockEntry(fixture, 'Stock 1'), 'Quantity'), '5'),
+        ],
+        [
+          'adding Stock',
+          async (fixture): Promise<void> => press(fixture, button(root(fixture), 'Add Stock')),
+        ],
+        [
+          'removing Stock',
+          async (fixture): Promise<void> => press(fixture, button(root(fixture), 'Remove Stock 1')),
+        ],
+        [
+          'adding a Part',
+          async (fixture): Promise<void> => press(fixture, button(root(fixture), 'Add Part')),
+        ],
+        [
+          'changing a Part name',
+          async (fixture): Promise<void> =>
+            type(fixture, field(part(fixture, 'Part 1'), 'Name (optional)'), 'stile'),
+        ],
+        [
+          'changing a Part length',
+          async (fixture): Promise<void> =>
+            type(fixture, field(part(fixture, 'Part 2'), 'Length'), '1900'),
+        ],
+        [
+          'changing a Part quantity',
+          async (fixture): Promise<void> =>
+            type(fixture, field(part(fixture, 'Part 1'), 'Quantity'), '4'),
+        ],
+        [
+          'removing a Part',
+          async (fixture): Promise<void> => press(fixture, button(root(fixture), 'Remove Part 2')),
+        ],
+        [
+          'changing the Kerf default in the settings, which the Kerf field shows',
+          async (fixture): Promise<void> => {
+            TestBed.inject(SettingsStore).setCutOptimizerKerf(4);
+            await fixture.whenStable();
+          },
+        ],
+        [
+          'changing the Kerf',
+          async (fixture): Promise<void> => type(fixture, field(jobSettings(fixture), 'Kerf'), '4'),
+        ],
+        [
+          'changing the Trim',
+          async (fixture): Promise<void> =>
+            type(fixture, field(jobSettings(fixture), 'Trim at each end'), '5'),
+        ],
+        [
+          'changing the minimum Offcut length',
+          async (fixture): Promise<void> =>
+            type(fixture, field(jobSettings(fixture), 'Minimum Offcut Length'), '200'),
+        ],
+        [
+          'changing the preferred Unit System, which changes how bare lengths are read',
+          async (fixture): Promise<void> => {
+            TestBed.inject(SettingsStore).setUnitSystem('imperial');
+            await fixture.whenStable();
+          },
+        ],
+      ];
+
+      it('is not marked right after generating', async () => {
+        const fixture = await generated();
+
+        expect(outOfDate(fixture)).toEqual(unmarked);
+      });
+
+      it.each(edits)('is marked after %s', async (_, edit) => {
+        const fixture = await generated();
+
+        await edit(fixture);
+
+        expect(outOfDate(fixture)).toEqual(marked);
+      });
+
+      it('is not marked by a change of language or precision, which change no input', async () => {
+        const fixture = await generated();
+
+        TestBed.inject(SettingsStore).setImperialPrecision(32);
+        TestBed.inject(TranslocoService).setActiveLang('es');
+        await fixture.whenStable();
+        TestBed.inject(TranslocoService).setActiveLang('en');
+        await fixture.whenStable();
+
+        expect(outOfDate(fixture)).toEqual(unmarked);
+      });
+
+      it('stays marked when the change is undone, until the plan is generated again', async () => {
+        const fixture = await generated();
+        const kerf = field(jobSettings(fixture), 'Kerf');
+        const original = kerf.value;
+
+        await type(fixture, kerf, '4');
+        await type(fixture, kerf, original);
+        expect(outOfDate(fixture)).toEqual(marked);
+
+        await press(fixture, generateButton(fixture));
+        expect(outOfDate(fixture)).toEqual(unmarked);
+      });
+
+      it('clears the mark when the plan is generated again with the change', async () => {
+        const fixture = await generated();
+        await type(fixture, field(part(fixture, 'Part 1'), 'Quantity'), '3');
+
+        await press(fixture, generateButton(fixture));
+
+        expect(outOfDate(fixture)).toEqual(unmarked);
+        expect(totals(fixture)[0]).toEqual(['Stock used', '2 in total', '2 × 2400 mm']);
+      });
+
+      it('keeps the out-of-date plan on the page while the input is invalid', async () => {
+        const fixture = await generated();
+
+        await type(fixture, field(jobSettings(fixture), 'Kerf'), '-1');
+
+        expect(generateButton(fixture).disabled).toBe(true);
+        expect(outOfDate(fixture)).toEqual(marked);
+        expect(totals(fixture)[0]).toEqual(['Stock used', '3 in total', '3 × 2400 mm']);
+      });
+
+      it('is announced politely from a live region that is on the page before the change', async () => {
+        const fixture = await generated();
+        const region = planStatus(fixture);
+        // A status is polite unless it says otherwise.
+        expect(region.getAttribute('aria-live')).toBeNull();
+        expect(textOf(region)).toBe('');
+
+        await type(fixture, field(jobSettings(fixture), 'Kerf'), '4');
+
+        expect(planStatus(fixture)).toBe(region);
+        expect(textOf(region)).toBe(outOfDateMessage);
+      });
+
+      it('is in Spanish', async () => {
+        const fixture = await generated();
+        TestBed.inject(TranslocoService).setActiveLang('es');
+        await fixture.whenStable();
+
+        await type(fixture, field(jobSettings(fixture), 'Grosor de corte'), '4');
+
+        expect(outOfDate(fixture)).toEqual([
+          'Desactualizado. Has cambiado el material, la lista de piezas o los ajustes del trabajo después de generar este plan de corte. Vuelve a generarlo antes de cortar.',
+          'Desactualizado',
+        ]);
+      });
+
+      it('has no accessibility violations when marked', async () => {
+        const fixture = await generated();
+        await type(fixture, field(jobSettings(fixture), 'Kerf'), '4');
+
+        await expectNoAxeViolations(root(fixture));
+      });
     });
   });
 
@@ -1286,6 +1929,11 @@ describe('CutOptimizerPage', () => {
         ['shelf', '2000', '1'],
       ],
     ] as const;
+
+    /** The mark by the Cutting Plan's heading: "Out of date", or empty. */
+    function outOfDateMark(fixture: ComponentFixture<CutOptimizerPage>): string {
+      return textOf(plan(fixture).querySelector('#plan-out-of-date'));
+    }
 
     it('shows the Stock, the Cut List, the job settings and the Cutting Plan again', async () => {
       const first = render();
@@ -1322,6 +1970,34 @@ describe('CutOptimizerPage', () => {
       expect(textOf(plan(second).querySelector('#plan-settings'))).toBe(
         'Kerf 3 mm · Trim 0 mm at each end · Minimum Offcut Length 300 mm · Strategy: Fewest Stock',
       );
+      expect(outOfDateMark(second)).toBe('Out of date');
+    });
+
+    it('shows an untouched Cutting Plan as up to date', async () => {
+      const first = render();
+      await first.whenStable();
+      await fill(first, ...legsAndShelfInput);
+      await press(first, generateButton(first));
+      first.destroy();
+
+      const second = TestBed.createComponent(CutOptimizerPage);
+      await second.whenStable();
+
+      expect(outOfDateMark(second)).toBe('');
+    });
+
+    it('still shows the Cutting Plan as out of date when the input changed before leaving', async () => {
+      const first = render();
+      await first.whenStable();
+      await fill(first, ...legsAndShelfInput);
+      await press(first, generateButton(first));
+      await type(first, field(part(first, 'Part 1'), 'Quantity'), '4');
+      first.destroy();
+
+      const second = TestBed.createComponent(CutOptimizerPage);
+      await second.whenStable();
+
+      expect(outOfDateMark(second)).toBe('Out of date');
     });
 
     it('keeps adding entries after the ones already there', async () => {

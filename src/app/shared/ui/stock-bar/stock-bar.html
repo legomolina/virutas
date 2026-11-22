@@ -1,0 +1,32 @@
+@let bar = view();
+<!-- Each label sits in a row of its own that shows it only when it fits (see stock-bar.css). -->
+<div class="segments">
+  @for (segment of bar.drawn; track $index) {
+    <div [attr.data-kind]="segment.kind" [style.flex-grow]="segment.length">
+      @if (segment.number !== undefined) {
+        <span class="row"
+          ><span class="number">{{ segment.number }}</span></span
+        >
+      }
+      @if (segment.kind === 'offcut') {
+        <span class="row"
+          ><span class="term">{{ offcutTerm() }}</span></span
+        >
+      }
+      @if (segment.label !== undefined) {
+        <span class="row"
+          ><span class="label">{{ segment.label }}</span></span
+        >
+      }
+    </div>
+  }
+</div>
+@if (bar.markers.length > 0) {
+  <div data-markers>
+    @for (marker of bar.markers; track marker.number) {
+      <div data-marker [style.inset-inline-start.%]="marker.offsetPercent">
+        <span class="number">{{ marker.number }}</span>
+      </div>
+    }
+  </div>
+}

@@ -1,8 +1,15 @@
 import { Component, input } from '@angular/core';
-import { LucideArrowRight, LucideMenu, LucideSlidersHorizontal, LucideX } from '@lucide/angular';
+import {
+  LucideArrowRight,
+  LucideMenu,
+  LucideSlidersHorizontal,
+  LucideTriangleExclamationPoint,
+  LucideX,
+} from '@lucide/angular';
 
 /** The icons the app uses (Lucide names). Add a name here and a case in `icon.html` to use another. */
-export type IconName = 'arrow-right' | 'menu' | 'sliders-horizontal' | 'x';
+export type IconName =
+  'arrow-right' | 'menu' | 'sliders-horizontal' | 'triangle-exclamation-point' | 'x';
 
 /**
  * A decorative Lucide icon (`docs/adr/0004-lucide-icons.md`). It is always
@@ -12,7 +19,13 @@ export type IconName = 'arrow-right' | 'menu' | 'sliders-horizontal' | 'x';
  */
 @Component({
   selector: 'wt-icon',
-  imports: [LucideArrowRight, LucideMenu, LucideSlidersHorizontal, LucideX],
+  imports: [
+    LucideArrowRight,
+    LucideMenu,
+    LucideSlidersHorizontal,
+    LucideTriangleExclamationPoint,
+    LucideX,
+  ],
   templateUrl: './icon.html',
   styleUrl: './icon.css',
   host: { '[attr.size]': 'size()', 'aria-hidden': 'true' },
