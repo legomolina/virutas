@@ -1,0 +1,148 @@
+@let plan = view();
+
+<section id="cutting-plan" aria-labelledby="plan-title">
+  <div #summary id="plan-summary" tabindex="-1" role="group" aria-labelledby="plan-title">
+    <h2 id="plan-title">{{ 'cutOptimizer.plan.title' | transloco }}</h2>
+
+    <dl>
+      <div>
+        <dt>{{ 'cutOptimizer.plan.stockUsed.label' | transloco }}</dt>
+        <dd>
+          {{ 'cutOptimizer.plan.stockUsed.total' | transloco: { count: plan.stockTotal } }}
+        </dd>
+        @for (used of plan.stockUsed; track used.length) {
+          <dd>{{ 'cutOptimizer.plan.stockUsed.line' | transloco: used }}</dd>
+        }
+      </div>
+      <div>
+        <dt>{{ 'cutOptimizer.plan.waste.label' | transloco }}</dt>
+        <dd>{{ plan.waste }}</dd>
+        <dd class="hint">{{ 'cutOptimizer.plan.waste.hint' | transloco }}</dd>
+      </div>
+      <div>
+        <dt>{{ 'cutOptimizer.plan.offcuts.label' | transloco }}</dt>
+        <dd>
+          {{ plan.offcuts === '' ? ('cutOptimizer.plan.offcuts.none' | transloco) : plan.offcuts }}
+        </dd>
+      </div>
+    </dl>
+
+    @let strategy = plan.strategy | transloco;
+    <p id="plan-settings">
+      {{
+        'cutOptimizer.plan.settingsUsed'
+          | transloco
+            : {
+                kerf: plan.settings.kerf,
+                trim: plan.settings.trim,
+                minimumOffcutLength: plan.settings.minimumOffcutLength,
+                strategy,
+              }
+      }}
+    </p>
+  </div>
+
+  @if (plan.unplacedCount > 0) {
+    <section id="unplaced-parts" aria-labelledby="unplaced-parts-title">
+      <hgroup>
+        <h3 id="unplaced-parts-title">
+          {{ 'cutOptimizer.plan.unplaced.title' | transloco: { count: plan.unplacedCount } }}
+        </h3>
+        <p>{{ 'cutOptimizer.plan.unplaced.description' | transloco }}</p>
+      </hgroup>
+      <ul>
+        @for (group of plan.unplaced; track group.reason) {
+          <li>
+            <span>
+              @for (part of group.parts; track $index) {
+                {{
+                  (part.name === undefined
+                    ? 'cutOptimizer.plan.unplaced.unnamed'
+                    : 'cutOptimizer.plan.unplaced.named'
+                  ) | transloco: part
+                }}{{ $last ? '.' : '; ' }}
+              }
+            </span>
+            @switch (group.reason) {
+              @case ('too-long') {
+                {{
+                  'cutOptimizer.plan.unplaced.tooLong' | transloco: { length: plan.longestUsable }
+                }}
+              }
+              @case ('insufficient-stock') {
+                {{ 'cutOptimizer.plan.unplaced.insufficientStock' | transloco }}
+              }
+            }
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  @if (plan.groups.length > 0) {
+    <section id="layouts" aria-labelledby="layouts-title">
+      <h3 id="layouts-title">{{ 'cutOptimizer.plan.layouts.title' | transloco }}</h3>
+
+      @for (group of plan.groups; track $index; let n = $index) {
+        <article [attr.aria-labelledby]="'layout-' + n + '-title'">
+          <h4 [id]="'layout-' + n + '-title'">
+            {{
+              'cutOptimizer.plan.layouts.heading'
+                | transloco: { count: group.count, length: group.stockLength }
+            }}
+          </h4>
+
+          <p [id]="'layout-' + n + '-cut-order'">
+            {{ 'cutOptimizer.plan.layouts.cutOrder' | transloco }}
+          </p>
+          <ol [attr.aria-labelledby]="'layout-' + n + '-cut-order'">
+            @for (part of group.parts; track $index) {
+              <li>
+                @if (part.name !== undefined) {
+                  <span>{{ part.name }}</span
+                  >&ngsp;
+                }
+                <span>{{ part.length }}</span>
+              </li>
+            }
+          </ol>
+
+          <dl>
+            <div>
+              <dt>{{ 'cutOptimizer.plan.layouts.cuts' | transloco }}</dt>
+              <dd>{{ group.cuts }}</dd>
+            </div>
+            <div>
+              <dt>{{ 'cutOptimizer.plan.layouts.trim' | transloco }}</dt>
+              <dd>
+                @if (group.trim === undefined) {
+                  {{ 'cutOptimizer.plan.layouts.none' | transloco }}
+                } @else {
+                  {{
+                    'cutOptimizer.plan.layouts.trimAtEachEnd' | transloco: { length: group.trim }
+                  }}
+                }
+              </dd>
+            </div>
+            <div>
+              <dt>{{ 'cutOptimizer.plan.layouts.leftover' | transloco }}</dt>
+              <dd>
+                @switch (group.leftover.kind) {
+                  @case ('offcut') {
+                    {{ 'cutOptimizer.plan.layouts.offcut' | transloco: group.leftover }}
+                  }
+                  @case ('waste') {
+                    {{ 'cutOptimizer.plan.layouts.waste' | transloco: group.leftover }}
+                  }
+                  @case ('none') {
+                    {{ 'cutOptimizer.plan.layouts.leftoverNone' | transloco }}
+                  }
+                }
+              </dd>
+            </div>
+          </dl>
+        </article>
+      }
+    </section>
+  }
+</section>

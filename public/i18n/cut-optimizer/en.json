@@ -57,6 +57,58 @@
       "empty": "Enter a length, or 0 for none.",
       "unreadable": "That length can't be read. Try something like 5 mm, 1/8\" or 0.",
       "negative": "A length can't be negative. Use 0 or more."
+    },
+    "strategy": {
+      "label": "Strategy",
+      "hint": "Uses as few Stock as possible, then the least total Stock length, then keeps the longest Offcuts.",
+      "fewestStock": "Fewest Stock"
+    }
+  },
+  "generate": {
+    "action": "Generate Cutting Plan",
+    "placeholder": "Your Cutting Plan appears here once you generate it.",
+    "blocked": {
+      "invalidFields": "Fix the fields marked above to generate the Cutting Plan.",
+      "incompleteEntries": "Fill in the length of every Stock and the length and quantity of every Part, or remove the ones you don't need.",
+      "missingEntries": "Add at least one Stock and one Part to generate the Cutting Plan."
+    }
+  },
+  "plan": {
+    "title": "Cutting Plan",
+    "stockUsed": {
+      "label": "Stock used",
+      "total": "{{ count }} in total",
+      "line": "{{ count }} × {{ length }}"
+    },
+    "waste": {
+      "label": "Waste",
+      "hint": "Leftover Waste, Trim and Kerf added up."
+    },
+    "offcuts": {
+      "label": "Offcuts to keep",
+      "none": "None"
+    },
+    "settingsUsed": "Kerf {{ kerf }} · Trim {{ trim }} at each end · Minimum Offcut Length {{ minimumOffcutLength }} · Strategy: {{ strategy }}",
+    "unplaced": {
+      "title": "Unplaced Parts ({{ count }})",
+      "description": "These Parts are missing from the Cutting Plan. The layouts below cover every other Part.",
+      "named": "{{ count }}× {{ name }}, {{ length }}",
+      "unnamed": "{{ count }}× {{ length }}",
+      "tooLong": "Longer than the usable length of every Stock ({{ length }} at most). Add longer Stock.",
+      "insufficientStock": "Not enough Stock: the limited Stock that fits is used up, and no unlimited Stock fits. Add more Stock."
+    },
+    "layouts": {
+      "title": "Layouts",
+      "heading": "{{ count }}× Stock {{ length }}",
+      "cutOrder": "Cut order",
+      "cuts": "Cuts",
+      "trim": "Trim",
+      "trimAtEachEnd": "{{ length }} at each end",
+      "none": "None",
+      "leftover": "Leftover",
+      "offcut": "Offcut {{ length }}, keep it",
+      "waste": "Waste {{ length }}",
+      "leftoverNone": "None, the Parts use the whole Stock"
     }
   }
 }

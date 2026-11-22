@@ -10,5 +10,46 @@
 <wt-job-settings-section
   [defaults]="jobSettingsDefaults()"
   [(edits)]="jobSettingsEdits"
+  [(strategy)]="strategy"
   [unitSystem]="settings.unitSystem()"
 />
+
+@let request = this.request();
+<div>
+  <button
+    wt-button
+    variant="primary"
+    type="button"
+    [disabled]="!request.ok"
+    [attr.aria-describedby]="request.ok ? null : 'generate-blocked'"
+    (click)="generate()"
+  >
+    {{ 'cutOptimizer.generate.action' | transloco }}
+  </button>
+  @if (!request.ok) {
+    <p id="generate-blocked">
+      @switch (request.reason) {
+        @case ('invalid-fields') {
+          {{ 'cutOptimizer.generate.blocked.invalidFields' | transloco }}
+        }
+        @case ('incomplete-entries') {
+          {{ 'cutOptimizer.generate.blocked.incompleteEntries' | transloco }}
+        }
+        @case ('missing-entries') {
+          {{ 'cutOptimizer.generate.blocked.missingEntries' | transloco }}
+        }
+      }
+    </p>
+  }
+</div>
+
+@if (generated(); as generated) {
+  <wt-cutting-plan
+    [plan]="generated.plan"
+    [input]="generated.input"
+    [unitSystem]="settings.unitSystem()"
+    [lengthOptions]="lengthOptions()"
+  />
+} @else {
+  <p id="plan-placeholder">{{ 'cutOptimizer.generate.placeholder' | transloco }}</p>
+}

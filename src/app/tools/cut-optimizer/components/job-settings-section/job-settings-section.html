@@ -45,4 +45,18 @@
       (valueChange)="edit('minimumOffcutLength', $event)"
     />
   </div>
+
+  <wt-select-field
+    name="job-strategy"
+    [label]="'cutOptimizer.jobSettings.strategy.label' | transloco"
+    [hint]="'cutOptimizer.jobSettings.strategy.hint' | transloco"
+    [options]="[
+      {
+        value: 'fewest-stock',
+        label: 'cutOptimizer.jobSettings.strategy.fewestStock' | transloco,
+      },
+    ]"
+    [value]="strategy()"
+    (valueChange)="choose($event)"
+  />
 </section>

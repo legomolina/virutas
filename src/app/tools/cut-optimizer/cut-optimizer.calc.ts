@@ -458,6 +458,11 @@ const fewestStock: Strategy = (input) => {
 
 const STRATEGIES: Readonly<Record<StrategyId, Strategy>> = { 'fewest-stock': fewestStock };
 
+/** Whether `value` names one of the Strategies, such as the value of a Strategy selector. */
+export function isStrategyId(value: string): value is StrategyId {
+  return Object.hasOwn(STRATEGIES, value);
+}
+
 /** Builds a Cutting Plan with the Strategy named in the job settings. */
 export function planCuts(input: CutOptimizerInput): CuttingPlan {
   return STRATEGIES[input.settings.strategy](input);

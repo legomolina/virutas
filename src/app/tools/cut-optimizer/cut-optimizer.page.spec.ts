@@ -145,6 +145,72 @@ function headings(fixture: ComponentFixture<CutOptimizerPage>): string[] {
   return [...root(fixture).querySelectorAll('h1')].map((h1) => h1.textContent.trim());
 }
 
+/** Fills the Stock entries, then the Parts, adding entries as needed. Each Stock is `[length, quantity]`. */
+async function fill(
+  fixture: ComponentFixture<CutOptimizerPage>,
+  stockEntries: readonly (readonly [string, string])[],
+  parts: readonly (readonly [string, string, string])[],
+): Promise<void> {
+  for (const [index, [length, quantity]] of stockEntries.entries()) {
+    if (index > 0) {
+      await press(fixture, button(root(fixture), 'Add Stock'));
+    }
+    const entry = stockEntry(fixture, `Stock ${index + 1}`);
+    await type(fixture, field(entry, 'Length'), length);
+    await type(fixture, field(entry, 'Quantity'), quantity);
+  }
+  for (const [index, [name, length, quantity]] of parts.entries()) {
+    if (index > 0) {
+      await press(fixture, button(root(fixture), 'Add Part'));
+    }
+    const entry = part(fixture, `Part ${index + 1}`);
+    await type(fixture, field(entry, 'Name (optional)'), name);
+    await type(fixture, field(entry, 'Length'), length);
+    await type(fixture, field(entry, 'Quantity'), quantity);
+  }
+}
+
+function generateButton(
+  fixture: ComponentFixture<CutOptimizerPage>,
+  name = 'Generate Cutting Plan',
+): HTMLButtonElement {
+  return button(root(fixture), name);
+}
+
+/** The Cutting Plan section, shown once generated. */
+function plan(fixture: ComponentFixture<CutOptimizerPage>): HTMLElement {
+  const found = root(fixture).querySelector<HTMLElement>('section#cutting-plan');
+  if (!found) {
+    throw new Error('No Cutting Plan.');
+  }
+  return found;
+}
+
+function textOf(element: Element | null | undefined): string {
+  return (element?.textContent ?? '').replace(/\s+/gu, ' ').trim();
+}
+
+/** Each term of the plan's totals followed by its descriptions. */
+function totals(fixture: ComponentFixture<CutOptimizerPage>): string[][] {
+  return [...plan(fixture).querySelectorAll('#plan-summary dl > div')].map((group) =>
+    [...group.children].map((child) => textOf(child)),
+  );
+}
+
+/** Each layout's heading, its Cut order, then its Cuts, Trim and Leftover. */
+function layouts(fixture: ComponentFixture<CutOptimizerPage>): string[][] {
+  return [...plan(fixture).querySelectorAll('article')].map((article) => [
+    textOf(article.querySelector('h4')),
+    ...[...article.querySelectorAll('ol > li, dl > div')].map((item) =>
+      [...item.children].map((child) => textOf(child)).join(' '),
+    ),
+  ]);
+}
+
+function unplacedParts(fixture: ComponentFixture<CutOptimizerPage>): string[] {
+  return [...plan(fixture).querySelectorAll('section#unplaced-parts li')].map((li) => textOf(li));
+}
+
 describe('CutOptimizerPage', () => {
   it("shows the Tool's name as its only h1 in English", async () => {
     const fixture = render();
@@ -891,6 +957,321 @@ describe('CutOptimizerPage', () => {
       const fixture = render();
       await fixture.whenStable();
       await type(fixture, field(jobSettings(fixture), kerfLabel), '-1');
+
+      await expectNoAxeViolations(root(fixture));
+    });
+
+    it('shows the Strategy in use, with what it optimizes', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+
+      const strategy = jobSettings(fixture).querySelector('select');
+      expect(strategy?.labels[0]?.textContent.trim()).toBe('Strategy');
+      expect([...(strategy?.options ?? [])].map((option) => option.textContent.trim())).toEqual([
+        'Fewest Stock',
+      ]);
+      expect(strategy?.value).toBe('fewest-stock');
+      expect(description(fixture, strategy!)).toEqual([
+        'Uses as few Stock as possible, then the least total Stock length, then keeps the longest Offcuts.',
+      ]);
+    });
+  });
+
+  describe('Cutting Plan', () => {
+    /** Two Stock of three legs with Waste, and one with the shelf and an Offcut. */
+    const legsAndShelf = [
+      [['2400', '']],
+      [
+        ['leg', '720', '6'],
+        ['shelf', '2000', '1'],
+      ],
+    ] as const;
+
+    /** One rail fits the only Stock; the second runs out of Stock and the top is too long. */
+    const withUnplacedParts = [
+      [['1800', '1']],
+      [
+        ['rail', '1000', '2'],
+        ['top', '2000', '1'],
+      ],
+    ] as const;
+
+    const notEnoughStock =
+      'Not enough Stock: the limited Stock that fits is used up, and no unlimited Stock fits. Add more Stock.';
+
+    it('cannot be generated until there is Stock and a Part, and says so', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+
+      const generate = generateButton(fixture);
+      expect(generate.disabled).toBe(true);
+      expect(description(fixture, generate)).toEqual([
+        'Add at least one Stock and one Part to generate the Cutting Plan.',
+      ]);
+      expect(root(fixture).querySelector('section#cutting-plan')).toBeNull();
+      expect(textOf(root(fixture).querySelector('#plan-placeholder'))).toBe(
+        'Your Cutting Plan appears here once you generate it.',
+      );
+    });
+
+    it('can be generated once the input is valid, ignoring blank entries', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, [['2400', '']], [['leg', '720', '6']]);
+      await press(fixture, button(root(fixture), 'Add Stock'));
+
+      const generate = generateButton(fixture);
+      expect(generate.disabled).toBe(false);
+      expect(generate.getAttribute('aria-describedby')).toBeNull();
+    });
+
+    it('cannot be generated while a field is invalid, and says so', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, [['2400', '']], [['leg', '720', '6']]);
+
+      await type(fixture, field(jobSettings(fixture), 'Kerf'), '-1');
+
+      expect(generateButton(fixture).disabled).toBe(true);
+      expect(description(fixture, generateButton(fixture))).toEqual([
+        'Fix the fields marked above to generate the Cutting Plan.',
+      ]);
+    });
+
+    it('cannot be generated while an entry is filled in only in part, and says so', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, [['2400', '']], [['leg', '720', '']]);
+
+      expect(generateButton(fixture).disabled).toBe(true);
+      expect(description(fixture, generateButton(fixture))).toEqual([
+        "Fill in the length of every Stock and the length and quantity of every Part, or remove the ones you don't need.",
+      ]);
+    });
+
+    it('shows the totals, the settings it used and the grouped layouts', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, ...legsAndShelf);
+
+      await press(fixture, generateButton(fixture));
+
+      expect(textOf(plan(fixture).querySelector('h2'))).toBe('Cutting Plan');
+      expect(totals(fixture)).toEqual([
+        ['Stock used', '3 in total', '3 × 2400 mm'],
+        ['Waste', '483 mm', 'Leftover Waste, Trim and Kerf added up.'],
+        ['Offcuts to keep', '397 mm'],
+      ]);
+      expect(textOf(plan(fixture).querySelector('#plan-settings'))).toBe(
+        'Kerf 3 mm · Trim 0 mm at each end · Minimum Offcut Length 300 mm · Strategy: Fewest Stock',
+      );
+      expect(textOf(plan(fixture).querySelector('section#layouts h3'))).toBe('Layouts');
+      expect(layouts(fixture)).toEqual([
+        [
+          '1× Stock 2400 mm',
+          'shelf 2000 mm',
+          'Cuts 1',
+          'Trim None',
+          'Leftover Offcut 397 mm, keep it',
+        ],
+        [
+          '2× Stock 2400 mm',
+          'leg 720 mm',
+          'leg 720 mm',
+          'leg 720 mm',
+          'Cuts 3',
+          'Trim None',
+          'Leftover Waste 231 mm',
+        ],
+      ]);
+      expect(plan(fixture).querySelector('section#unplaced-parts')).toBeNull();
+    });
+
+    it('shows the Trim and a Stock with nothing left, and unnamed Parts by length', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, [['2410', '']], [['', '1198.5', '2']]);
+      await type(fixture, field(jobSettings(fixture), 'Trim at each end'), '5');
+
+      await press(fixture, generateButton(fixture));
+
+      expect(layouts(fixture)).toEqual([
+        [
+          '1× Stock 2410 mm',
+          '1198.5 mm',
+          '1198.5 mm',
+          'Cuts 1',
+          'Trim 5 mm at each end',
+          'Leftover None, the Parts use the whole Stock',
+        ],
+      ]);
+      expect(totals(fixture)[2]).toEqual(['Offcuts to keep', 'None']);
+    });
+
+    it('lists the Unplaced Parts with their reason above a partial plan', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, ...withUnplacedParts);
+
+      await press(fixture, generateButton(fixture));
+
+      expect(textOf(plan(fixture).querySelector('section#unplaced-parts h3'))).toBe(
+        'Unplaced Parts (2)',
+      );
+      expect(unplacedParts(fixture)).toEqual([
+        `1× rail, 1000 mm. ${notEnoughStock}`,
+        '1× top, 2000 mm. Longer than the usable length of every Stock (1800 mm at most). Add longer Stock.',
+      ]);
+      expect(layouts(fixture)).toEqual([
+        [
+          '1× Stock 1800 mm',
+          'rail 1000 mm',
+          'Cuts 1',
+          'Trim None',
+          'Leftover Offcut 797 mm, keep it',
+        ],
+      ]);
+      const sections = [...plan(fixture).querySelectorAll('section')].map((section) => section.id);
+      expect(sections.indexOf('unplaced-parts')).toBeLessThan(sections.indexOf('layouts'));
+    });
+
+    it('counts identical Unplaced Parts once per reason', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(
+        fixture,
+        [['1800', '1']],
+        [
+          ['shelf', '1100', '3'],
+          ['', '900', '1'],
+        ],
+      );
+
+      await press(fixture, generateButton(fixture));
+
+      expect(unplacedParts(fixture)).toEqual([`2× shelf, 1100 mm; 1× 900 mm. ${notEnoughStock}`]);
+    });
+
+    it('moves focus to the Cutting Plan summary', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, ...legsAndShelf);
+
+      await press(fixture, generateButton(fixture));
+
+      const summary = plan(fixture).querySelector('#plan-summary');
+      expect(document.activeElement).toBe(summary);
+      expect(summary?.getAttribute('role')).toBe('group');
+      const name = summary?.getAttribute('aria-labelledby') ?? '';
+      expect(textOf(root(fixture).querySelector(`#${name}`))).toBe('Cutting Plan');
+    });
+
+    it('separates each Part name from its length in the Cut order', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, [['2400', '']], [['leg', '720', '1']]);
+
+      await press(fixture, generateButton(fixture));
+
+      expect(textOf(plan(fixture).querySelector('ol > li'))).toBe('leg 720 mm');
+    });
+
+    it('shows no layouts when every Part is Unplaced', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, [['1800', '']], [['top', '2000', '1']]);
+
+      await press(fixture, generateButton(fixture));
+
+      expect(unplacedParts(fixture)).toHaveLength(1);
+      expect(totals(fixture)[0]).toEqual(['Stock used', '0 in total']);
+      expect(plan(fixture).querySelector('section#layouts')).toBeNull();
+    });
+
+    it('says in Spanish why it cannot be generated', async () => {
+      const fixture = render();
+      TestBed.inject(TranslocoService).setActiveLang('es');
+      await fixture.whenStable();
+
+      expect(description(fixture, generateButton(fixture, 'Generar plan de corte'))).toEqual([
+        'Añade al menos un material y una pieza para generar el plan de corte.',
+      ]);
+    });
+
+    it('shows Imperial lengths with ≈ when they are rounded', async () => {
+      const fixture = render();
+      TestBed.inject(SettingsStore).setUnitSystem('imperial');
+      await fixture.whenStable();
+      await fill(fixture, [['96', '']], [['', '250 mm', '1']]);
+
+      await press(fixture, generateButton(fixture));
+
+      expect(layouts(fixture)).toEqual([
+        [
+          '1× Stock 96"',
+          '≈ 9 13/16"',
+          'Cuts 1',
+          'Trim None',
+          'Leftover Offcut ≈ 86 1/16", keep it',
+        ],
+      ]);
+      expect(totals(fixture)[1]).toEqual([
+        'Waste',
+        '1/8"',
+        'Leftover Waste, Trim and Kerf added up.',
+      ]);
+    });
+
+    it('is in Spanish, using the glossary terms', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, ...withUnplacedParts);
+      TestBed.inject(TranslocoService).setActiveLang('es');
+      await fixture.whenStable();
+
+      await press(fixture, generateButton(fixture, 'Generar plan de corte'));
+
+      expect(textOf(plan(fixture).querySelector('h2'))).toBe('Plan de corte');
+      expect(totals(fixture)).toEqual([
+        ['Material usado', '1 en total', '1 × 1800 mm'],
+        ['Desperdicio', '3 mm', 'Suma de sobrantes desperdiciados, saneado y grosor de corte.'],
+        ['Retales para guardar', '797 mm'],
+      ]);
+      expect(textOf(plan(fixture).querySelector('#plan-settings'))).toBe(
+        'Grosor de corte 3 mm · Saneado 0 mm en cada extremo · Longitud mínima de retal 300 mm · Estrategia: Menos material',
+      );
+      expect(textOf(plan(fixture).querySelector('section#unplaced-parts h3'))).toBe(
+        'Piezas sin colocar (2)',
+      );
+      expect(unplacedParts(fixture)).toEqual([
+        '1× rail, 1000 mm. No hay material suficiente: el material limitado en el que cabe se ha agotado y ningún material ilimitado sirve. Añade más material.',
+        '1× top, 2000 mm. Más larga que la longitud útil de todo el material (1800 mm como máximo). Añade material más largo.',
+      ]);
+      expect(layouts(fixture)).toEqual([
+        [
+          '1× material de 1800 mm',
+          'rail 1000 mm',
+          'Cortes 1',
+          'Saneado Ninguno',
+          'Sobrante Retal de 797 mm, guárdalo',
+        ],
+      ]);
+    });
+
+    it('has no accessibility violations with a plan', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, ...legsAndShelf);
+      await press(fixture, generateButton(fixture));
+
+      await expectNoAxeViolations(root(fixture));
+    });
+
+    it('has no accessibility violations with Unplaced Parts', async () => {
+      const fixture = render();
+      await fixture.whenStable();
+      await fill(fixture, ...withUnplacedParts);
+      await press(fixture, generateButton(fixture));
 
       await expectNoAxeViolations(root(fixture));
     });
