@@ -1,12 +1,4 @@
-import {
-  afterNextRender,
-  Component,
-  computed,
-  inject,
-  Injector,
-  signal,
-  viewChild,
-} from '@angular/core';
+import { afterNextRender, Component, computed, inject, Injector, viewChild } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { SettingsStore } from '../../core/settings/settings-store';
 import { Button } from '../../shared/ui/button/button';
@@ -14,21 +6,11 @@ import { CutListSection } from './components/cut-list-section/cut-list-section';
 import { CuttingPlanView } from './components/cutting-plan/cutting-plan';
 import { JobSettingsSection } from './components/job-settings-section/job-settings-section';
 import { StockSection } from './components/stock-section/stock-section';
-import type { TypedCutListEntry } from './cut-list-entry.calc';
-import { emptyCutListEntry } from './cut-list-entry.calc';
-import type { CutOptimizerInput, CuttingPlan, StrategyId } from './cut-optimizer.calc';
 import { planCuts } from './cut-optimizer.calc';
+import { CutOptimizerStore } from './cut-optimizer.store';
 import { readCuttingPlanRequest } from './cutting-plan-request.calc';
 import { editableLength } from './editable-length';
 import type { JobSettingsTexts } from './job-settings.calc';
-import type { TypedStockEntry } from './stock-entry.calc';
-import { emptyStockEntry } from './stock-entry.calc';
-
-/** A generated Cutting Plan with the input it was generated from. */
-interface GeneratedPlan {
-  readonly plan: CuttingPlan;
-  readonly input: CutOptimizerInput;
-}
 
 /** The Cut Optimizer's page. */
 @Component({
@@ -46,15 +28,11 @@ interface GeneratedPlan {
 })
 export default class CutOptimizerPage {
   protected readonly settings = inject(SettingsStore);
+  /** The job, kept for the session so it is still here when the woodworker comes back. */
+  protected readonly job = inject(CutOptimizerStore);
   private readonly injector = inject(Injector);
 
   private readonly cuttingPlan = viewChild(CuttingPlanView);
-
-  /** The Stock entries as typed; the page starts with one empty entry. */
-  protected readonly stock = signal<readonly TypedStockEntry[]>([emptyStockEntry([])]);
-
-  /** The Cut List as typed; the page starts with one empty Part. */
-  protected readonly cutList = signal<readonly TypedCutListEntry[]>([emptyCutListEntry([])]);
 
   /**
    * The Cut Optimizer defaults as text, in the preferred Unit System. A job setting shows its
@@ -75,12 +53,6 @@ export default class CutOptimizerPage {
     };
   });
 
-  /** The job settings changed on this page, as typed; the defaults are never changed here. */
-  protected readonly jobSettingsEdits = signal<Partial<JobSettingsTexts>>({});
-
-  /** The Strategy the Cutting Plan is built with. */
-  protected readonly strategy = signal<StrategyId>('fewest-stock');
-
   /** How lengths are shown: the global precision, in the page's language. */
   protected readonly lengthOptions = computed(() => ({
     precision: this.settings.imperialPrecision(),
@@ -91,17 +63,14 @@ export default class CutOptimizerPage {
   protected readonly request = computed(() =>
     readCuttingPlanRequest(
       {
-        stock: this.stock(),
-        cutList: this.cutList(),
-        jobSettings: { ...this.jobSettingsDefaults(), ...this.jobSettingsEdits() },
-        strategy: this.strategy(),
+        stock: this.job.stock(),
+        cutList: this.job.cutList(),
+        jobSettings: { ...this.jobSettingsDefaults(), ...this.job.jobSettingsEdits() },
+        strategy: this.job.strategy(),
       },
       this.settings.unitSystem(),
     ),
   );
-
-  /** The last Cutting Plan generated, if any. */
-  protected readonly generated = signal<GeneratedPlan | undefined>(undefined);
 
   /** Builds the Cutting Plan from the current input and moves focus to its summary. */
   protected generate(): void {
@@ -109,7 +78,7 @@ export default class CutOptimizerPage {
     if (!request.ok) {
       return;
     }
-    this.generated.set({ plan: planCuts(request.input), input: request.input });
+    this.job.keepCuttingPlan(planCuts(request.input), request.input);
     afterNextRender(() => this.cuttingPlan()?.focusSummary(), { injector: this.injector });
   }
 }

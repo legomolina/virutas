@@ -3,14 +3,24 @@
   <p>{{ 'cutOptimizer.intro' | transloco }}</p>
 </hgroup>
 
-<wt-stock-section [(entries)]="stock" [unitSystem]="settings.unitSystem()" />
+<wt-stock-section
+  [entries]="job.stock()"
+  (entriesChange)="job.setStock($event)"
+  [unitSystem]="settings.unitSystem()"
+/>
 
-<wt-cut-list-section [(entries)]="cutList" [unitSystem]="settings.unitSystem()" />
+<wt-cut-list-section
+  [entries]="job.cutList()"
+  (entriesChange)="job.setCutList($event)"
+  [unitSystem]="settings.unitSystem()"
+/>
 
 <wt-job-settings-section
   [defaults]="jobSettingsDefaults()"
-  [(edits)]="jobSettingsEdits"
-  [(strategy)]="strategy"
+  [edits]="job.jobSettingsEdits()"
+  (editsChange)="job.setJobSettingsEdits($event)"
+  [strategy]="job.strategy()"
+  (strategyChange)="job.setStrategy($event)"
   [unitSystem]="settings.unitSystem()"
 />
 
@@ -43,7 +53,7 @@
   }
 </div>
 
-@if (generated(); as generated) {
+@if (job.generated(); as generated) {
   <wt-cutting-plan
     [plan]="generated.plan"
     [input]="generated.input"
