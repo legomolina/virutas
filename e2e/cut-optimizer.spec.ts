@@ -113,3 +113,45 @@ test.describe('the Cut List', () => {
     await expect(cutList.getByRole('group')).toHaveCount(1);
   });
 });
+
+test.describe('the Cutting Plan', () => {
+  test('"Show every Stock" expands and collapses the layouts from the keyboard', async ({
+    page,
+  }) => {
+    await page.goto('/cut-optimizer');
+    await page.getByRole('region', { name: 'Stock' }).getByLabel('Length').fill('2400 mm');
+    const cutList = page.getByRole('region', { name: 'Cut List' });
+    const legs = cutList.getByRole('group', { name: 'Part 1' });
+    await legs.getByLabel('Name (optional)').fill('leg');
+    await legs.getByLabel('Length').fill('800 mm');
+    await legs.getByLabel('Quantity').fill('6');
+    await cutList.getByRole('button', { name: 'Add Part' }).click();
+    const rails = cutList.getByRole('group', { name: 'Part 2' });
+    await rails.getByLabel('Name (optional)').fill('rail');
+    await rails.getByLabel('Length').fill('700 mm');
+    await rails.getByLabel('Quantity').fill('3');
+    await page.getByRole('button', { name: 'Generate Cutting Plan' }).click();
+
+    const layouts = page.getByRole('region', { name: 'Layouts' });
+    const headings = layouts.getByRole('heading', { level: 4 });
+    const toggle = layouts.getByRole('checkbox', { name: 'Show every Stock' });
+    await expect(headings).toHaveCount(1);
+
+    await page.keyboard.press('Tab');
+    await expect(toggle).toBeFocused();
+    await page.keyboard.press('Space');
+
+    await expect(toggle).toBeChecked();
+    await expect(headings).toHaveCount(3);
+    await expect(headings).toHaveText([
+      'Stock 1 of 3 · ≈ 94 1/2"',
+      'Stock 2 of 3 · ≈ 94 1/2"',
+      'Stock 3 of 3 · ≈ 94 1/2"',
+    ]);
+
+    await page.keyboard.press('Space');
+
+    await expect(toggle).not.toBeChecked();
+    await expect(headings).toHaveCount(1);
+  });
+});

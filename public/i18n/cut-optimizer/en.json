@@ -99,7 +99,9 @@
     },
     "layouts": {
       "title": "Layouts",
-      "heading": "{{ count }}× Stock {{ length }}",
+      "showEveryStock": "Show every Stock",
+      "groupHeading": "{{ count }}× Stock {{ length }}",
+      "stockHeading": "Stock {{ position }} of {{ total }} · {{ length }}",
       "cutOrder": "Cut order",
       "cuts": "Cuts",
       "trim": "Trim",

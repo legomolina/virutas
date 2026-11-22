@@ -1267,6 +1267,148 @@ describe('CutOptimizerPage', () => {
       await expectNoAxeViolations(root(fixture));
     });
 
+    describe('Show every Stock', () => {
+      /** Three identical Stock of leg, leg, rail: two legs and a rail fill a Stock, three legs don't fit. */
+      const legsAndRails = [
+        [['2400', '']],
+        [
+          ['leg', '800', '6'],
+          ['rail', '700', '3'],
+        ],
+      ] as const;
+
+      const legLegRail = ['leg 800 mm', 'leg 800 mm', 'rail 700 mm', 'Cuts 3', 'Trim None'];
+
+      function toggle(
+        fixture: ComponentFixture<CutOptimizerPage>,
+        name = 'Show every Stock',
+      ): HTMLInputElement {
+        return field(plan(fixture), name);
+      }
+
+      async function click(
+        fixture: ComponentFixture<CutOptimizerPage>,
+        input: HTMLInputElement,
+      ): Promise<void> {
+        input.click();
+        await fixture.whenStable();
+      }
+
+      it('is an unchecked, labelled checkbox: the layouts start grouped', async () => {
+        const fixture = render();
+        await fixture.whenStable();
+        await fill(fixture, ...legsAndRails);
+
+        await press(fixture, generateButton(fixture));
+
+        expect(toggle(fixture).type).toBe('checkbox');
+        expect(toggle(fixture).checked).toBe(false);
+        expect(layouts(fixture).map(([heading]) => heading)).toEqual(['3× Stock 2400 mm']);
+        expect(layouts(fixture)[0]?.slice(1, 6)).toEqual(legLegRail);
+      });
+
+      it('expands a group into its individual Stock and collapses them back', async () => {
+        const fixture = render();
+        await fixture.whenStable();
+        await fill(fixture, ...legsAndRails);
+        await press(fixture, generateButton(fixture));
+
+        await click(fixture, toggle(fixture));
+
+        expect(toggle(fixture).checked).toBe(true);
+        expect(layouts(fixture).map(([heading]) => heading)).toEqual([
+          'Stock 1 of 3 · 2400 mm',
+          'Stock 2 of 3 · 2400 mm',
+          'Stock 3 of 3 · 2400 mm',
+        ]);
+        for (const layout of layouts(fixture)) {
+          expect(layout.slice(1, 6)).toEqual(legLegRail);
+        }
+
+        await click(fixture, toggle(fixture));
+
+        expect(toggle(fixture).checked).toBe(false);
+        expect(layouts(fixture).map(([heading]) => heading)).toEqual(['3× Stock 2400 mm']);
+      });
+
+      it('numbers every Stock across the groups, in group order', async () => {
+        const fixture = render();
+        await fixture.whenStable();
+        await fill(fixture, ...legsAndShelf);
+        await press(fixture, generateButton(fixture));
+
+        await click(fixture, toggle(fixture));
+
+        expect(layouts(fixture).map(([heading, firstPart]) => [heading, firstPart])).toEqual([
+          ['Stock 1 of 3 · 2400 mm', 'shelf 2000 mm'],
+          ['Stock 2 of 3 · 2400 mm', 'leg 720 mm'],
+          ['Stock 3 of 3 · 2400 mm', 'leg 720 mm'],
+        ]);
+      });
+
+      it('gives every layout its own heading and Cut order', async () => {
+        const fixture = render();
+        await fixture.whenStable();
+        await fill(fixture, ...legsAndRails);
+        await press(fixture, generateButton(fixture));
+
+        await click(fixture, toggle(fixture));
+
+        const articles = [...plan(fixture).querySelectorAll('article')];
+        const ids = articles.flatMap((article) => [
+          article.getAttribute('aria-labelledby'),
+          article.querySelector('ol')?.getAttribute('aria-labelledby'),
+        ]);
+        expect(new Set(ids).size).toBe(6);
+        expect(
+          articles.map((article) =>
+            textOf(root(fixture).querySelector(`#${article.getAttribute('aria-labelledby')}`)),
+          ),
+        ).toEqual(['Stock 1 of 3 · 2400 mm', 'Stock 2 of 3 · 2400 mm', 'Stock 3 of 3 · 2400 mm']);
+      });
+
+      it('stays as it is when the plan is generated again', async () => {
+        const fixture = render();
+        await fixture.whenStable();
+        await fill(fixture, ...legsAndRails);
+        await press(fixture, generateButton(fixture));
+        await click(fixture, toggle(fixture));
+
+        await press(fixture, generateButton(fixture));
+
+        expect(toggle(fixture).checked).toBe(true);
+        expect(layouts(fixture)).toHaveLength(3);
+      });
+
+      it('is in Spanish', async () => {
+        const fixture = render();
+        await fixture.whenStable();
+        await fill(fixture, ...legsAndRails);
+        TestBed.inject(TranslocoService).setActiveLang('es');
+        await fixture.whenStable();
+        await press(fixture, generateButton(fixture, 'Generar plan de corte'));
+
+        await click(fixture, toggle(fixture, 'Mostrar cada material por separado'));
+
+        expect(layouts(fixture).map(([heading]) => heading)).toEqual([
+          'Material 1 de 3 · 2400 mm',
+          'Material 2 de 3 · 2400 mm',
+          'Material 3 de 3 · 2400 mm',
+        ]);
+      });
+
+      it('has no accessibility violations grouped or expanded', async () => {
+        const fixture = render();
+        await fixture.whenStable();
+        await fill(fixture, ...legsAndRails);
+        await press(fixture, generateButton(fixture));
+
+        await expectNoAxeViolations(root(fixture));
+        await click(fixture, toggle(fixture));
+        await expectNoAxeViolations(root(fixture));
+      });
+    });
+
     it('has no accessibility violations with Unplaced Parts', async () => {
       const fixture = render();
       await fixture.whenStable();
