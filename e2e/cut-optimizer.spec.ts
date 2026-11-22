@@ -115,6 +115,30 @@ test.describe('the Cut List', () => {
 });
 
 test.describe('the Cutting Plan', () => {
+  test('is built in a Web Worker and takes focus once it is shown', async ({ page }) => {
+    const workers: string[] = [];
+    page.on('worker', (worker) => workers.push(worker.url()));
+    await page.goto('/cut-optimizer');
+    await page
+      .getByRole('region', { name: 'Stock' })
+      .getByRole('group', { name: 'Stock 1' })
+      .getByLabel('Length')
+      .fill('2400 mm');
+    const part1 = page
+      .getByRole('region', { name: 'Cut List' })
+      .getByRole('group', { name: 'Part 1' });
+    await part1.getByLabel('Name (optional)').fill('leg');
+    await part1.getByLabel('Length').fill('720 mm');
+    await part1.getByLabel('Quantity').fill('6');
+
+    await page.getByRole('button', { name: 'Generate Cutting Plan' }).click();
+
+    const summary = page.getByRole('group', { name: 'Cutting Plan' });
+    await expect(summary).toBeFocused();
+    await expect(summary).toContainText('2 in total');
+    expect(workers).toEqual([expect.stringMatching(/cut-optimizer.*worker|worker-/u)]);
+  });
+
   test('"Show every Stock" expands and collapses the layouts from the keyboard', async ({
     page,
   }) => {

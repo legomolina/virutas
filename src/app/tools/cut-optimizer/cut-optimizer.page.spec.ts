@@ -7,9 +7,51 @@ import optimizerEn from '../../../../public/i18n/cut-optimizer/en.json';
 import optimizerEs from '../../../../public/i18n/cut-optimizer/es.json';
 import { expectNoAxeViolations } from '../../../testing/expect-no-axe-violations';
 import { translocoTesting } from '../../../testing/transloco-testing';
+import type { CutOptimizerInput, CuttingPlan } from './cut-optimizer.calc';
+import { planCuts } from './cut-optimizer.calc';
 import CutOptimizerPage from './cut-optimizer.page';
+import type { CuttingPlanner } from './cutting-planner';
+import { CUTTING_PLANNER } from './cutting-planner';
 
-function render(): ComponentFixture<CutOptimizerPage> {
+/** Runs the engine in-process: jsdom has no Web Worker. */
+const planCutsInProcess: CuttingPlanner = async (input) => Promise.resolve(planCuts(input));
+
+interface HeldRequest {
+  readonly input: CutOptimizerInput;
+  readonly resolve: (plan: CuttingPlan) => void;
+  readonly reject: (reason: Error) => void;
+}
+
+/** A planner that holds each request until the test answers it or makes it fail. */
+class HeldPlanner {
+  readonly requests: HeldRequest[] = [];
+
+  readonly plan: CuttingPlanner = async (input) =>
+    new Promise((resolve, reject) => {
+      this.requests.push({ input, resolve, reject });
+    });
+
+  /** Answers the oldest request with the engine's plan. */
+  answer(): void {
+    const request = this.next();
+    request.resolve(planCuts(request.input));
+  }
+
+  /** Makes the oldest request fail. */
+  fail(): void {
+    this.next().reject(new Error('The worker failed.'));
+  }
+
+  private next(): HeldRequest {
+    const request = this.requests.shift();
+    if (!request) {
+      throw new Error('No request to answer.');
+    }
+    return request;
+  }
+}
+
+function render(planner: CuttingPlanner = planCutsInProcess): ComponentFixture<CutOptimizerPage> {
   TestBed.configureTestingModule({
     imports: [
       translocoTesting({
@@ -17,7 +59,7 @@ function render(): ComponentFixture<CutOptimizerPage> {
         'cut-optimizer/es': optimizerEs,
       }),
     ],
-    providers: [provideRouter([])],
+    providers: [provideRouter([]), { provide: CUTTING_PLANNER, useValue: planner }],
   });
   TestBed.inject(SettingsStore).setUnitSystem('metric');
   return TestBed.createComponent(CutOptimizerPage);
@@ -1164,6 +1206,119 @@ describe('CutOptimizerPage', () => {
       expect(summary?.getAttribute('role')).toBe('group');
       const name = summary?.getAttribute('aria-labelledby') ?? '';
       expect(textOf(root(fixture).querySelector(`#${name}`))).toBe('Cutting Plan');
+    });
+
+    /** The page with a planner that holds each Cutting Plan, its input already typed. */
+    async function renderHeld(): Promise<{
+      fixture: ComponentFixture<CutOptimizerPage>;
+      planner: HeldPlanner;
+    }> {
+      const planner = new HeldPlanner();
+      const fixture = render(planner.plan);
+      await fixture.whenStable();
+      await fill(fixture, ...legsAndShelf);
+      return { fixture, planner };
+    }
+
+    /** Presses Generate from the keyboard's point of view, without waiting for the plan. */
+    function startGenerating(fixture: ComponentFixture<CutOptimizerPage>, name?: string): void {
+      const generate = generateButton(fixture, name);
+      generate.focus();
+      generate.click();
+      fixture.detectChanges();
+    }
+
+    function status(fixture: ComponentFixture<CutOptimizerPage>): string {
+      return textOf(root(fixture).querySelector('[role="status"]'));
+    }
+
+    it('says the Cutting Plan is being built, and cannot be generated again meanwhile', async () => {
+      const { fixture, planner } = await renderHeld();
+      expect(status(fixture)).toBe('');
+
+      startGenerating(fixture);
+
+      const generate = generateButton(fixture);
+      expect(generate.getAttribute('aria-disabled')).toBe('true');
+      expect(document.activeElement).toBe(generate);
+      expect(status(fixture)).toBe('Building the Cutting Plan…');
+      generate.click();
+      fixture.detectChanges();
+      expect(planner.requests).toHaveLength(1);
+
+      planner.answer();
+      await fixture.whenStable();
+
+      expect(generateButton(fixture).getAttribute('aria-disabled')).toBeNull();
+      expect(status(fixture)).toBe('');
+      expect(totals(fixture)[0]).toEqual(['Stock used', '3 in total', '3 × 2400 mm']);
+      expect(document.activeElement).toBe(plan(fixture).querySelector('#plan-summary'));
+    });
+
+    it('says when the Cutting Plan could not be built, and can be generated again', async () => {
+      const { fixture, planner } = await renderHeld();
+
+      startGenerating(fixture);
+      planner.fail();
+      await fixture.whenStable();
+
+      const generate = generateButton(fixture);
+      expect(generate.getAttribute('aria-disabled')).toBeNull();
+      expect(document.activeElement).toBe(generate);
+      expect(alerts(fixture)).toEqual(['The Cutting Plan could not be built. Try again.']);
+      expect(description(fixture, generate)).toEqual([
+        'The Cutting Plan could not be built. Try again.',
+      ]);
+      expect(status(fixture)).toBe('');
+      expect(root(fixture).querySelector('section#cutting-plan')).toBeNull();
+
+      startGenerating(fixture);
+      planner.answer();
+      await fixture.whenStable();
+
+      expect(alerts(fixture)).toEqual([]);
+      expect(generateButton(fixture).getAttribute('aria-describedby')).toBeNull();
+      expect(totals(fixture)[0]).toEqual(['Stock used', '3 in total', '3 × 2400 mm']);
+    });
+
+    it('drops the previous Cutting Plan when the next one could not be built', async () => {
+      const { fixture, planner } = await renderHeld();
+      startGenerating(fixture);
+      planner.answer();
+      await fixture.whenStable();
+
+      startGenerating(fixture);
+      planner.fail();
+      await fixture.whenStable();
+
+      expect(alerts(fixture)).toEqual(['The Cutting Plan could not be built. Try again.']);
+      expect(root(fixture).querySelector('section#cutting-plan')).toBeNull();
+      expect(textOf(root(fixture).querySelector('#plan-placeholder'))).toBe(
+        'Your Cutting Plan appears here once you generate it.',
+      );
+    });
+
+    it('says in Spanish that the Cutting Plan is being built, or could not be', async () => {
+      const { fixture, planner } = await renderHeld();
+      TestBed.inject(TranslocoService).setActiveLang('es');
+      await fixture.whenStable();
+
+      startGenerating(fixture, 'Generar plan de corte');
+      expect(status(fixture)).toBe('Generando el plan de corte…');
+      planner.fail();
+      await fixture.whenStable();
+
+      expect(alerts(fixture)).toEqual([
+        'No se ha podido generar el plan de corte. Vuelve a intentarlo.',
+      ]);
+    });
+
+    it('has no accessibility violations while the Cutting Plan is being built', async () => {
+      const { fixture } = await renderHeld();
+
+      startGenerating(fixture);
+
+      await expectNoAxeViolations(root(fixture));
     });
 
     it('separates each Part name from its length in the Cut order', async () => {

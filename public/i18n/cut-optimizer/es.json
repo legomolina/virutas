@@ -66,6 +66,8 @@
   },
   "generate": {
     "action": "Generar plan de corte",
+    "building": "Generando el plan de corte…",
+    "failed": "No se ha podido generar el plan de corte. Vuelve a intentarlo.",
     "placeholder": "Tu plan de corte aparecerá aquí cuando lo generes.",
     "blocked": {
       "invalidFields": "Corrige los campos marcados arriba para generar el plan de corte.",
