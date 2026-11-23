@@ -1,6 +1,8 @@
-# Woodworking Tools
+# Virutas
 
 A collection of client-side calculators and utilities for woodworkers: unit conversion, board-foot calculation, cut-list optimization and more. Each tool lives on its own page (e.g. `/unit-converter`, `/cut-optimizer`).
+
+Live at **[virutas.net](https://virutas.net)**.
 
 This is also a playground for **agentic software development**: most of the code is written by AI agents (Claude Code), with a human reviewing every change through pull requests.
 
@@ -40,7 +42,7 @@ Trunk-based development:
 1. Create a short-lived branch from `main` (`feat/...`, `fix/...`, `chore/...`).
 2. Open a pull request. Every PR gets its own preview deployment.
 3. Iterate until CI is green and the preview has been verified.
-4. Squash-merge into `main`, which deploys to production. The branch is deleted automatically.
+4. Squash-merge into `main`, which deploys to production at [virutas.net](https://virutas.net). The branch is deleted automatically.
 
 A `pre-commit` hook (`.githooks/pre-commit`) runs `pnpm lint` and blocks commits that fail it.
 

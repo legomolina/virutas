@@ -153,7 +153,7 @@ describe('generateTokensCss', () => {
       spacing: { note: '', tokens: [{ name: 'space-1', value: '4px', usage: 'Gap.' }] },
       radius: { tokens: [{ name: 'radius-sm', value: '2px', usage: 'Inputs.' }] },
       size: { tokens: [{ name: 'control-height', value: '48px', usage: 'Controls.' }] },
-      name: 'Woodworking Tools',
+      name: 'Virutas',
       version: 1,
     };
 

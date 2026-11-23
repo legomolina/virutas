@@ -1,4 +1,4 @@
-# Woodworking Tools
+# Virutas
 
 Client-side calculators and utilities for woodworkers. Each **Tool** solves one woodworking task and lives on its own page. There is no backend: everything runs in the browser and is deployed as a static site.
 
@@ -185,7 +185,7 @@ When you add, change or remove a rule, hook, check or agent, record it in `docs/
 
 ### Issue tracker
 
-Issues are tracked in GitHub Issues (legomolina/woodworking-tools) via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues are tracked in GitHub Issues (legomolina/virutas) via the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

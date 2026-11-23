@@ -11,7 +11,7 @@ test('the Cut Optimizer is bookmarkable at its own address', async ({ page }) =>
   await expect(
     page.getByText('Plan how to cut your Parts out of your Stock with the least Waste.'),
   ).toBeVisible();
-  await expect(page).toHaveTitle('Cut Optimizer – Woodworking Tools');
+  await expect(page).toHaveTitle('Cut Optimizer – Virutas');
 });
 
 test('the home page lists the Cut Optimizer and opens it', async ({ page }) => {
@@ -256,7 +256,7 @@ test.describe('printing', () => {
     const plan = page.getByRole('region', { name: 'Cutting Plan' });
     await expect(plan).toBeVisible();
     await stock1.getByLabel('Quantity').fill('2');
-    const masthead = page.getByText('Woodworking Tools · Cut Optimizer', { exact: true });
+    const masthead = page.getByText('Virutas · Cut Optimizer', { exact: true });
     await expect(masthead).toBeHidden();
     // Everything that stays on screen, each one shown before printing so its check below means something.
     const screenOnly = [
@@ -538,7 +538,7 @@ test('the job and its Cutting Plan are still there after visiting the home page 
 
   await page
     .getByRole('banner')
-    .getByRole('link', { name: /Woodworking Tools/ })
+    .getByRole('link', { name: /Virutas/ })
     .first()
     .click();
   await expect(page).toHaveURL('/');

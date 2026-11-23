@@ -68,7 +68,7 @@ describe('the app shell', () => {
     const { page } = await setUp('/test-tool');
 
     const brand = page.querySelector<HTMLAnchorElement>('header a[href="/"]');
-    expect(brand?.textContent.trim()).toBe('Woodworking Tools');
+    expect(brand?.textContent.trim()).toBe('Virutas');
   });
 
   it("marks the current Tool's link in the Tools navigation", async () => {

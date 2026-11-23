@@ -1,5 +1,5 @@
 # Runs the Definition of Done checks on every PR and on main, deploys the build
-# to Cloudflare Pages (a preview per PR, production on main) and runs the e2e
+# to Cloudflare Pages (a preview per PR, production on main at virutas.net) and runs the e2e
 # suite against that deployment. Branch protection on main requires the checks
 # and e2e jobs to pass.
 name: CI
@@ -42,7 +42,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: site
-          path: dist/woodworking-tools/browser/
+          path: dist/virutas/browser/
           retention-days: 7
 
   deploy:
@@ -54,7 +54,9 @@ jobs:
     # Environments page.
     environment:
       name: ${{ github.event_name == 'push' && 'production' || 'preview' }}
-      url: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
+      # Production is served on the project's custom domain; previews stay on
+      # their <branch>.virutas.pages.dev alias.
+      url: ${{ github.event_name == 'push' && 'https://virutas.net' || steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
     outputs:
       url: ${{ steps.deploy.outputs.deployment-url }}
     steps:
@@ -74,7 +76,7 @@ jobs:
           wranglerVersion: '4.151.2'
           packageManager: npm
           workingDirectory: deploy
-          command: pages deploy site --project-name=woodworking-tools --branch=${{ github.head_ref || github.ref_name }} --commit-hash=${{ github.event.pull_request.head.sha || github.sha }}
+          command: pages deploy site --project-name=virutas --branch=${{ github.head_ref || github.ref_name }} --commit-hash=${{ github.event.pull_request.head.sha || github.sha }}
 
   e2e:
     name: E2E and accessibility

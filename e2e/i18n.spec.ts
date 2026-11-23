@@ -32,7 +32,7 @@ test.describe('switching the language in the footer', () => {
 
   test('translates the page and its title without a reload', async ({ page }) => {
     await page.goto('/no-such-page');
-    await expect(page).toHaveTitle('Page not found – Woodworking Tools');
+    await expect(page).toHaveTitle('Page not found – Virutas');
     // A reload would reset this marker.
     await page.evaluate(() => {
       document.body.dataset['sameDocument'] = 'yes';
@@ -41,7 +41,7 @@ test.describe('switching the language in the footer', () => {
     await page.getByLabel('Language').selectOption('es');
 
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Página no encontrada');
-    await expect(page).toHaveTitle('Página no encontrada – Woodworking Tools');
+    await expect(page).toHaveTitle('Página no encontrada – Virutas');
     await expect(page.locator('html')).toHaveAttribute('lang', 'es');
     await expect(page.locator('body')).toHaveAttribute('data-same-document', 'yes');
   });

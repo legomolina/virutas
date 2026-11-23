@@ -23,11 +23,11 @@ test('the skip link is the first stop and moves focus to the main content', asyn
 test('the brand leads home from any page', async ({ page }) => {
   await page.goto('/no-such-page');
 
-  await page.getByRole('banner').getByRole('link', { name: 'Woodworking Tools' }).click();
+  await page.getByRole('banner').getByRole('link', { name: 'Virutas' }).click();
 
   await expect(page).toHaveURL('/');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Woodworking Tools');
-  await expect(page).toHaveTitle('Woodworking Tools');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Virutas');
+  await expect(page).toHaveTitle('Virutas');
 });
 
 test.describe('on a narrow screen', () => {
@@ -71,7 +71,7 @@ test.describe('on a narrow screen', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(0);
     releaseHomePage();
 
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Woodworking Tools');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Virutas');
     await expect(page.getByRole('link', { name: 'Settings' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Menu', expanded: true })).toBeVisible();
   });

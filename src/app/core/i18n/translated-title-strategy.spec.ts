@@ -30,7 +30,7 @@ describe('TranslatedTitleStrategy', () => {
 
     await harness.navigateByUrl('/');
 
-    expect(TestBed.inject(Title).getTitle()).toBe('Woodworking Tools');
+    expect(TestBed.inject(Title).getTitle()).toBe('Virutas');
   });
 
   it("puts the page's translated title before the app name", async () => {
@@ -38,7 +38,7 @@ describe('TranslatedTitleStrategy', () => {
 
     await harness.navigateByUrl('/test-tool');
 
-    expect(TestBed.inject(Title).getTitle()).toBe('Test Tool – Woodworking Tools');
+    expect(TestBed.inject(Title).getTitle()).toBe('Test Tool – Virutas');
   });
 
   it('retranslates the title when the language changes', async () => {
@@ -47,6 +47,6 @@ describe('TranslatedTitleStrategy', () => {
 
     TestBed.inject(TranslocoService).setActiveLang('es');
 
-    expect(TestBed.inject(Title).getTitle()).toBe('Herramienta de prueba – Woodworking Tools');
+    expect(TestBed.inject(Title).getTitle()).toBe('Herramienta de prueba – Virutas');
   });
 });

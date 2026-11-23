@@ -8,7 +8,7 @@ test('the settings page names itself in the title', async ({ page }) => {
   await page.goto('/settings');
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Settings');
-  await expect(page).toHaveTitle('Settings – Woodworking Tools');
+  await expect(page).toHaveTitle('Settings – Virutas');
 });
 
 test('the Unit System is chosen with the arrow keys', async ({ page }) => {
