@@ -1,6 +1,6 @@
 # Component styling: wt components, scoped CSS and generated tokens
 
-Every UI building block is an Angular `@Component` with emulated (scoped) styles, never a styling `@Directive`, and every selector uses the `wt` prefix (the root is `wt-root`). Styling goes through design tokens taken from the Woodworking Tools design system (https://claude.ai/artifact/7WbCYr1KNbFfmVqsvCyoRs). We copy its look and tokens, not its preview CSS (`wt-btn`-style classes). Lint rules back each decision so agents and humans cannot drift from it. Decided in a grilling session on 2026-11-03 (#19).
+Every UI building block is an Angular `@Component` with emulated (scoped) styles, never a styling `@Directive`, and every selector uses the `wt` prefix (the root is `wt-root`). Styling goes through design tokens taken from the Virutas design system (https://claude.ai/artifact/7WbCYr1KNbFfmVqsvCyoRs). We copy its look and tokens, not its preview CSS (`wt-btn`-style classes). Lint rules back each decision so agents and humans cannot drift from it. Decided in a grilling session on 2026-11-03 (#19).
 
 ## Components
 
