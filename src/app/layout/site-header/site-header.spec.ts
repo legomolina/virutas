@@ -131,9 +131,7 @@ describe('SiteHeader', () => {
   it('links the brand to the home page', async () => {
     const { root } = await render('/test-tool');
 
-    expect(links(root.querySelector('header')).slice(0, 1)).toEqual([
-      ['Woodworking Tools', '/', null],
-    ]);
+    expect(links(root.querySelector('header')).slice(0, 1)).toEqual([['Virutas', '/', null]]);
   });
 
   it('has a Tools navigation with a link to each Tool, marking the current one', async () => {

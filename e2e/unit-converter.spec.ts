@@ -7,7 +7,7 @@ test('the Unit Converter is bookmarkable at its own address', async ({ page }) =
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Unit Converter');
   await expect(page.getByText('Type a length and see it in every unit at once.')).toBeVisible();
-  await expect(page).toHaveTitle('Unit Converter – Woodworking Tools');
+  await expect(page).toHaveTitle('Unit Converter – Virutas');
 });
 
 test('the home page lists the Unit Converter and opens it', async ({ page }) => {
@@ -106,7 +106,7 @@ test('the typed length is still there after visiting the home page and coming ba
 
   await page
     .getByRole('banner')
-    .getByRole('link', { name: /Woodworking Tools/ })
+    .getByRole('link', { name: /Virutas/ })
     .first()
     .click();
   await expect(page).toHaveURL('/');

@@ -71,7 +71,7 @@ test('the values are still there after leaving the Tool and coming back', async 
   await page.getByRole('radio', { name: 'Short Face' }).check();
   await page.getByLabel('Short Face length').fill('281 mm');
 
-  await page.getByRole('link', { name: 'Woodworking Tools' }).first().click();
+  await page.getByRole('link', { name: 'Virutas' }).first().click();
   await page.getByRole('link', { name: 'Bevel Fence Calculator' }).first().click();
 
   await expect(page.getByLabel('Bevel Angle', { exact: true })).toHaveValue('45');

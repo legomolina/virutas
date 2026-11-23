@@ -28,8 +28,8 @@ function check(files) {
 
 const app = {
   'src/app/app.html': PAGE,
-  'public/i18n/en.json': { app: { name: 'Woodworking Tools' } },
-  'public/i18n/es.json': { app: { name: 'Woodworking Tools' } },
+  'public/i18n/en.json': { app: { name: 'Virutas' } },
+  'public/i18n/es.json': { app: { name: 'Virutas' } },
 };
 
 const tool = {

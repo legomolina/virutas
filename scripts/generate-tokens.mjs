@@ -1,5 +1,5 @@
 // Generates src/styles/tokens.css from src/styles/tokens.json, the snapshot of
-// the Woodworking Tools design system's tokens (see docs/adr/0003).
+// the Virutas design system's tokens (see docs/adr/0003).
 //
 //   pnpm tokens         write tokens.css
 //   pnpm tokens:check   fail if tokens.css is out of date (part of `pnpm lint`)
