@@ -1,4 +1,5 @@
 import { Icon } from '../../shared/ui/icon/icon';
+import { NgOptimizedImage } from '@angular/common';
 import type { ElementRef } from '@angular/core';
 import { Component, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -15,7 +16,7 @@ import { NavLink } from '../../shared/ui/nav-link/nav-link';
  */
 @Component({
   selector: 'wt-site-header',
-  imports: [Icon, NavLink, RouterLink, RouterLinkActive, TranslocoPipe],
+  imports: [Icon, NavLink, NgOptimizedImage, RouterLink, RouterLinkActive, TranslocoPipe],
   templateUrl: './site-header.html',
   styleUrl: './site-header.css',
 })
