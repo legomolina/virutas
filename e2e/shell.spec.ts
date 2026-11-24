@@ -30,6 +30,16 @@ test('the brand leads home from any page', async ({ page }) => {
   await expect(page).toHaveTitle('Virutas');
 });
 
+test('the brand mark loads on a page below the root', async ({ page }) => {
+  await page.goto('/settings/');
+
+  const mark = page.getByRole('banner').locator('a img');
+  await expect(mark).toHaveCount(1);
+  await expect
+    .poll(() => mark.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth))
+    .toBeGreaterThan(0);
+});
+
 test.describe('on a narrow screen', () => {
   test.use({ viewport: { width: 320, height: 640 } });
 
