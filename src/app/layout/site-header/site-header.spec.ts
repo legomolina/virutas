@@ -134,6 +134,16 @@ describe('SiteHeader', () => {
     expect(links(root.querySelector('header')).slice(0, 1)).toEqual([['Virutas', '/', null]]);
   });
 
+  it('shows the brand mark before the name, as decoration the link name leaves out', async () => {
+    const { root } = await render('/test-tool');
+
+    const brand = root.querySelector('header a');
+    const mark = brand?.firstElementChild;
+    expect(mark?.tagName).toBe('IMG');
+    expect(mark?.getAttribute('src')).toBe('favicon.svg');
+    expect(mark?.getAttribute('alt')).toBe('');
+  });
+
   it('has a Tools navigation with a link to each Tool, marking the current one', async () => {
     const { root } = await render('/test-tool');
 
