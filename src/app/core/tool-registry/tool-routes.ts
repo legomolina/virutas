@@ -1,4 +1,5 @@
 import type { Routes } from '@angular/router';
+import type { PageMetaData } from '../page-meta/page-meta';
 import type { ToolEntry } from './tool-entry';
 
 const KEBAB_CASE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -21,10 +22,12 @@ export function toolRoutes(tools: readonly ToolEntry[]): Routes {
     }
     seen.add(path);
   }
-  // The route's title is a translation key: TranslatedTitleStrategy translates it.
-  return tools.map(({ path, nameKey, loadRoutes }) => ({
+  // The route's title and description are translation keys: TranslatedTitleStrategy and
+  // providePageMeta translate them.
+  return tools.map(({ path, nameKey, descriptionKey, loadRoutes }) => ({
     path,
     title: nameKey,
+    data: { description: descriptionKey } satisfies PageMetaData,
     loadChildren: loadRoutes,
   }));
 }

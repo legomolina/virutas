@@ -8,8 +8,9 @@ Before working on anything domain-related, read `GLOSSARY.md` and use its terms 
 
 Use `pnpm`, never `npm` or `yarn`.
 
-- `pnpm lint` / `pnpm lint:fix`: generated-token check + translation check + component-spec check + Prettier + ESLint + Stylelint (check / auto-fix)
+- `pnpm lint` / `pnpm lint:fix`: generated-token and sitemap check + translation check + component-spec check + Prettier + ESLint + Stylelint (check / auto-fix)
 - `pnpm tokens`: regenerate `src/styles/tokens.css` from the `tokens.json` snapshot
+- `pnpm sitemap`: regenerate `public/sitemap.xml` from the Tool registry (run it after adding a Tool; `pnpm lint` checks it)
 - `pnpm i18n:check`: fails when a translation key used in `src/app` is missing from any language file (Transloco keys manager), or a language file is missing. Part of `pnpm lint`; run it on its own while adding user-facing text.
 - `pnpm typecheck`: type-check app and spec sources
 - `pnpm specs:check`: fails when a component, directive or pipe in `src/app/shared/ui/` or `src/app/layout/` has no co-located `*.spec.ts` that imports it and has a `describe(` block. Part of `pnpm lint`.

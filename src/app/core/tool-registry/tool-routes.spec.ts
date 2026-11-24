@@ -48,6 +48,12 @@ describe('toolRoutes', () => {
     ]);
   });
 
+  it("describes a Tool's page with the Tool's description key, for search engines and link previews", () => {
+    expect(toolRoutes([testEntry()])).toEqual([
+      expect.objectContaining({ data: { description: 'tools.testTool.description' } }),
+    ]);
+  });
+
   it('rejects two Tools at the same path', () => {
     expect(() => toolRoutes([testEntry(), testEntry()])).toThrow(
       'Two Tools are registered at the path "test-tool".',

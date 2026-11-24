@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "Virutas",
-    "pageTitle": "{{ page }} – {{ appName }}"
+    "pageTitle": "{{ page }} – {{ appName }}",
+    "description": "Calculadoras de carpintería que funcionan en tu navegador: convierte medidas, coloca la guía paralela para un corte a bisel y planifica tus cortes con el menor desperdicio."
   },
   "home": {
     "intro": "Respuestas rápidas y exactas para el taller: convierte medidas y planifica tus cortes.",
@@ -23,6 +24,7 @@
   },
   "settings": {
     "title": "Ajustes",
+    "description": "Elige el sistema de medida, la precisión imperial, el idioma y los valores con los que empiezan las herramientas.",
     "intro": "Los cambios se aplican al momento y se mantienen hasta que recargues o cierres esta pestaña.",
     "general": "General",
     "unitSystem": {

@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "Virutas",
-    "pageTitle": "{{ page }} – {{ appName }}"
+    "pageTitle": "{{ page }} – {{ appName }}",
+    "description": "Woodworking calculators that run in your browser: convert measurements, set the Fence for a Bevel Cut and plan your Cuts with the least Waste."
   },
   "home": {
     "intro": "Quick, exact answers for the workshop: convert measurements and plan your cuts.",
@@ -23,6 +24,7 @@
   },
   "settings": {
     "title": "Settings",
+    "description": "Choose the Unit System, Imperial precision, language and defaults the Tools start with.",
     "intro": "Changes apply at once and last until you reload or close this tab.",
     "general": "General",
     "unitSystem": {

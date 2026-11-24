@@ -6,8 +6,7 @@ import type { Routes } from '@angular/router';
  * Tool (the router, the shell, the home page and the settings page)
  * only ever sees this, never the Tool's internals.
  *
- * Keep this module free of runtime imports: the e2e suite imports the registry
- * in Node to audit every Tool's page.
+ * Keep this module free of runtime imports: the e2e suite and the sitemap generator import the registry in Node.
  */
 export interface ToolEntry {
   /** The Tool's route without the leading slash, kebab-case and matching its folder: `unit-converter`. */
