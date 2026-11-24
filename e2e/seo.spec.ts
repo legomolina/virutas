@@ -1,10 +1,31 @@
 import { expect, test } from '@playwright/test';
+import en from '../public/i18n/en.json';
+import { TOOLS } from '../src/app/core/tool-registry/tools';
+import { translationAt } from '../src/testing/tool-pages';
 import { appRoutes } from './routes';
 
 const NOT_FOUND = '/no-such-page';
 
 /** Every page search engines should find: all of them but the not-found page. */
 const indexedPaths = appRoutes.map(({ path }) => path).filter((path) => path !== NOT_FOUND);
+
+/**
+ * Each indexed page's English description. index.html already holds the home page's, so
+ * matching every page's own text proves the app replaced it.
+ */
+const DESCRIPTION_KEYS: Readonly<Record<string, string>> = {
+  '/': 'app.description',
+  '/settings': 'settings.description',
+  ...Object.fromEntries(TOOLS.map(({ path, descriptionKey }) => [`/${path}`, descriptionKey])),
+};
+
+function descriptionOf(path: string): string {
+  const description = translationAt(en, DESCRIPTION_KEYS[path] ?? '');
+  if (description === undefined) {
+    throw new Error(`No English description for ${path}.`);
+  }
+  return description;
+}
 
 /** A PNG's size, read from its IHDR chunk. */
 function pngSize(body: Buffer): { width: number; height: number } {
@@ -33,6 +54,17 @@ test('the sitemap lists every page but the not-found page, on virutas.net', asyn
   expect([...locs].sort()).toEqual(indexedPaths.map((path) => `https://virutas.net${path}`).sort());
 });
 
+test("index.html describes the site with the app's English description, for previews without JavaScript", async ({
+  request,
+}) => {
+  const html = await (await request.get('/')).text();
+
+  const content = descriptionOf('/').replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  for (const name of ['name="description"', 'property="og:description"']) {
+    expect(html).toMatch(new RegExp(`<meta\\s+${name}\\s+content="${content}"`));
+  }
+});
+
 test('serves the 1200 x 630 link preview image that index.html declares', async ({
   page,
   request,
@@ -50,19 +82,31 @@ test('serves the 1200 x 630 link preview image that index.html declares', async 
 });
 
 for (const path of indexedPaths) {
-  test(`${path} has a description and its canonical address on virutas.net`, async ({ page }) => {
+  test(`${path} has its own description, title and canonical address on virutas.net`, async ({
+    page,
+  }) => {
     await page.goto(path);
 
     const canonical = `https://virutas.net${path}`;
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', canonical);
     await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', canonical);
-    await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /\w/);
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+      'content',
+      descriptionOf(path),
+    );
+    await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
+      'content',
+      await page.title(),
+    );
+    // The app has run (the canonical link above is its own), so a robots tag would be there by now.
     await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
   });
 }
 
 test('the not-found page stays out of search results', async ({ page }) => {
   await page.goto(NOT_FOUND);
+  // Wait for the app, so the missing canonical link below is its doing.
+  await expect(page).toHaveTitle('Page not found – Virutas');
 
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex');
   await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);

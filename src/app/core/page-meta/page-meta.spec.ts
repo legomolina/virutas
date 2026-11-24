@@ -178,4 +178,35 @@ describe('page metadata', () => {
       }),
     );
   });
+
+  it("describes the home page in Spanish with the app's Spanish description", async () => {
+    const harness = await setUp();
+    await harness.navigateByUrl('/');
+
+    TestBed.inject(TranslocoService).setActiveLang('es');
+
+    expect(head()).toEqual(
+      expect.objectContaining({
+        description:
+          'Calculadoras de carpintería que funcionan en tu navegador: convierte medidas, coloca la guía paralela para un corte a bisel y planifica tus cortes con el menor desperdicio.',
+        canonical: 'https://virutas.net/',
+      }),
+    );
+  });
+
+  it('keeps the not-found page out of search results after the language changes', async () => {
+    const harness = await setUp();
+    await harness.navigateByUrl('/no-such-page');
+
+    TestBed.inject(TranslocoService).setActiveLang('es');
+
+    expect(head()).toEqual(
+      expect.objectContaining({
+        title: 'Página no encontrada – Virutas',
+        ogUrl: null,
+        canonical: null,
+        robots: 'noindex',
+      }),
+    );
+  });
 });

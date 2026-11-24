@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { TOOLS } from '../src/app/core/tool-registry/tools.ts';
 import { sitemapXml } from './generate-sitemap.mjs';
 
 const SCRIPT = fileURLToPath(new URL('generate-sitemap.mjs', import.meta.url));
@@ -44,10 +45,9 @@ describe('generate-sitemap CLI', () => {
     assert.deepEqual(locs, [
       'https://virutas.net/',
       'https://virutas.net/settings',
-      'https://virutas.net/unit-converter',
-      'https://virutas.net/bevel-fence-calculator',
-      'https://virutas.net/cut-optimizer',
+      ...TOOLS.map(({ path }) => `https://virutas.net/${path}`),
     ]);
+    assert.ok(locs.includes('https://virutas.net/cut-optimizer'), 'a real Tool is listed');
   });
 
   it('--check passes when the sitemap is up to date', () => {
@@ -72,11 +72,7 @@ describe('generate-sitemap CLI', () => {
   });
 
   it('--check fails when there is no sitemap yet', () => {
-    const out = join(mkdtempSync(join(tmpdir(), 'sitemap-')), 'sitemap.xml');
-
-    const check = spawnSync(process.execPath, [SCRIPT, '--check', '--out', out], {
-      encoding: 'utf8',
-    });
+    const check = runCli('--check').first;
 
     assert.equal(check.status, 1);
     assert.match(check.stderr, /pnpm sitemap/);
