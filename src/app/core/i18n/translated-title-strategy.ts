@@ -7,6 +7,23 @@ import { TranslocoService } from '@jsverse/transloco';
 import { BehaviorSubject, combineLatest } from 'rxjs';
 
 /**
+ * The title of a page whose route `title` is `pageKey` (a translation key), in
+ * the active language: "<page> – <app name>", or the app name alone without one.
+ * Page metadata reuses it, so link previews show the same title as the tab.
+ */
+export function translatedPageTitle(
+  transloco: TranslocoService,
+  pageKey: string | undefined,
+): string {
+  const appName = transloco.translate('app.name');
+  if (pageKey === undefined) {
+    return appName;
+  }
+  const page: string = transloco.translate(pageKey);
+  return transloco.translate('app.pageTitle', { page, appName });
+}
+
+/**
  * Builds the document title from translation keys: a route's `title` is an
  * app-wide translation key (a Tool's route uses the Tool's name key), shown as
  * "<page> – <app name>"; a page without one is titled with the app name alone.
@@ -27,20 +44,11 @@ export class TranslatedTitleStrategy extends TitleStrategy {
     combineLatest([this.pageKey, this.transloco.selectTranslation()])
       .pipe(takeUntilDestroyed())
       .subscribe(([pageKey]) => {
-        this.title.setTitle(this.translatedTitle(pageKey));
+        this.title.setTitle(translatedPageTitle(this.transloco, pageKey));
       });
   }
 
   override updateTitle(snapshot: RouterStateSnapshot): void {
     this.pageKey.next(this.buildTitle(snapshot));
-  }
-
-  private translatedTitle(pageKey: string | undefined): string {
-    const appName = this.transloco.translate('app.name');
-    if (pageKey === undefined) {
-      return appName;
-    }
-    const page: string = this.transloco.translate(pageKey);
-    return this.transloco.translate('app.pageTitle', { page, appName });
   }
 }

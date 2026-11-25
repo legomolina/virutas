@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated from the Tool registry by scripts/generate-sitemap.mjs. Do not edit. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://virutas.net/</loc></url>
+  <url><loc>https://virutas.net/settings</loc></url>
+  <url><loc>https://virutas.net/unit-converter</loc></url>
+  <url><loc>https://virutas.net/bevel-fence-calculator</loc></url>
+  <url><loc>https://virutas.net/cut-optimizer</loc></url>
+</urlset>

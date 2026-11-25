@@ -6,6 +6,10 @@ Add an entry whenever you add, change or remove a guardrail, or when one catches
 
 Add new entries at the top, in the same shape: a date, then **What happened**, **Root cause** and **Guardrail**. Keep it a list, not a table: Prettier re-aligns a whole table whenever a row widens it, so parallel branches conflict on every line.
 
+- **2026-11-25**
+  - **What happened:** No incident: set when `public/sitemap.xml` was added for search engines (#142).
+  - **Root cause:** The sitemap must list every Tool, and a hand-kept list would miss the next Tool added to the registry.
+  - **Guardrail:** `scripts/generate-sitemap.mjs` builds it from the Tool registry and `SITE_ORIGIN`; `pnpm lint` runs `pnpm sitemap:check`, which fails when the committed file differs (tested in `scripts/generate-sitemap.test.mjs`).
 - **2026-11-22**
   - **What happened:** The Cut Optimizer's Stock bars (#113) had to pass the colour contrast audit, but `e2e/accessibility.spec.ts` only audited each page as first loaded, before any Cutting Plan exists, so the bars would never have been checked.
   - **Root cause:** The audit had no way to bring a page into a state that shows a result.

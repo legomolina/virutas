@@ -5,7 +5,8 @@ import type { ToolEntry } from './tool-entry';
  * page, the shell's navigation, the settings page (through `TOOL_REGISTRY`)
  * and the e2e accessibility audit read it, so adding a
  * Tool means adding its entry here (plus its `tools.<toolName>.*` name and
- * description in the app-wide translation files) and nothing else.
+ * description in the app-wide translation files), then running `pnpm sitemap`
+ * so search engines find it.
  *
  * ```ts
  * {

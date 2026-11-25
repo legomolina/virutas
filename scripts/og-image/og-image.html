@@ -1,0 +1,83 @@
+<!doctype html>
+<!--
+  Source of public/og-image.png, the image link previews show (Open Graph, 1200 × 630).
+  Colours are the light theme's tokens; the mark is public/favicon.svg. After changing it:
+    pnpm exec playwright screenshot --viewport-size=1200,630 scripts/og-image/og-image.html public/og-image.png
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Virutas</title>
+    <style>
+      @font-face {
+        font-family: Barlow;
+        font-weight: 400;
+        src: url('../../public/fonts/barlow/barlow-latin-400-normal.woff2') format('woff2');
+      }
+
+      @font-face {
+        font-family: Barlow;
+        font-weight: 600;
+        src: url('../../public/fonts/barlow/barlow-latin-600-normal.woff2') format('woff2');
+      }
+
+      body {
+        display: flex;
+        gap: 64px;
+        align-items: center;
+
+        box-sizing: border-box;
+        inline-size: 1200px;
+        block-size: 630px;
+        margin: 0;
+        padding-inline: 96px;
+        border-block-end: 24px solid #f5b700;
+
+        font-family: Barlow, sans-serif;
+        color: #2a2017;
+
+        background: #f7f1e8;
+      }
+
+      svg {
+        flex: none;
+        inline-size: 280px;
+        block-size: 280px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 128px;
+        font-weight: 600;
+        line-height: 1;
+        letter-spacing: -0.02em;
+      }
+
+      p {
+        margin-block: 24px 0;
+        font-size: 40px;
+        line-height: 1.25;
+        color: #66574a;
+      }
+    </style>
+  </head>
+  <body>
+    <svg viewBox="0 0 32 32" aria-hidden="true">
+      <defs>
+        <path
+          id="shaving"
+          d="M4.25 25H17.75A10 10 0 0 0 17.75 5A6.5 6.5 0 0 0 11.25 11.5A4.5 4.5 0 0 0 15.75 16"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </defs>
+      <use href="#shaving" stroke="#2a2017" stroke-width="7" />
+      <use href="#shaving" stroke="#f5b700" stroke-width="3.5" />
+    </svg>
+    <div>
+      <h1>Virutas</h1>
+      <p>Woodworking calculators that run in your browser.</p>
+    </div>
+  </body>
+</html>
