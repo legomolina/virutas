@@ -38,3 +38,11 @@
     <ng-container *ngComponentOutlet="section.component" />
   </section>
 }
+
+<section aria-labelledby="settings-saved">
+  <h2 id="settings-saved">{{ 'settings.reset.heading' | transloco }}</h2>
+  <p>{{ 'settings.reset.explanation' | transloco }}</p>
+  <button wt-button variant="danger" type="button" (click)="resetAll()">
+    {{ 'settings.reset.button' | transloco }}
+  </button>
+</section>

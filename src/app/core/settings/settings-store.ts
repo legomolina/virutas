@@ -177,6 +177,16 @@ export class SettingsStore {
     this.save();
   }
 
+  /**
+   * Puts every Setting back to its default: the language to the browser's, the
+   * Unit System to the browser's, and everything else to its own default. Nothing
+   * chosen stays saved.
+   */
+  resetAll(): void {
+    this.apply({}, { languageFallback: initialLang(getBrowserLang()) });
+    this.save();
+  }
+
   private languageChanged(language: Lang): void {
     if (this.applying) {
       return;

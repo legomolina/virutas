@@ -413,6 +413,64 @@ describe('SettingsStore', () => {
       expect(storage.lastSaved).toStrictEqual({ version: 1 });
     });
 
+    it('goes back to every default and saves nothing chosen on resetAll', () => {
+      const storage = new FakeSettingsStorage({
+        version: 1,
+        unitSystem: 'imperial',
+        imperialPrecision: 8,
+        language: 'es',
+        cutOptimizer: {
+          kerfMillimetres: 2,
+          trimMillimetres: 10,
+          minimumOffcutLengthMillimetres: 500,
+        },
+      });
+      const store = setUp(['en-GB'], storage);
+      expect(store.language()).toBe('es');
+
+      store.resetAll();
+
+      expect(store.unitSystem()).toBe('metric');
+      expect(store.imperialPrecision()).toBe(16);
+      expect(store.cutOptimizerSetByUser()).toStrictEqual({
+        kerf: false,
+        trim: false,
+        minimumOffcutLength: false,
+      });
+      expect(store.language()).toBe('en');
+      expect(activeLang()).toBe('en');
+      expect(storage.lastSaved).toStrictEqual({ version: 1 });
+    });
+
+    it('goes back to the browser Unit System on resetAll', () => {
+      const store = setUp(['en-US']);
+      store.setUnitSystem('metric');
+
+      store.resetAll();
+
+      expect(store.unitSystem()).toBe('imperial');
+    });
+
+    it('goes back to the browser language on resetAll', () => {
+      const store = setUp(['es-ES'], new FakeSettingsStorage({ version: 1, language: 'en' }));
+      expect(store.language()).toBe('en');
+
+      store.resetAll();
+
+      expect(store.language()).toBe('es');
+    });
+
+    it('leaves the language out of later saves after resetAll', () => {
+      const storage = new FakeSettingsStorage();
+      const store = setUp(['en-GB'], storage);
+      store.setLanguage('es');
+
+      store.resetAll();
+      store.setUnitSystem('imperial');
+
+      expect(storage.lastSaved).toStrictEqual({ version: 1, unitSystem: 'imperial' });
+    });
+
     it('saves nothing for a value it rejects', () => {
       const storage = new FakeSettingsStorage();
       const store = setUp(['en-GB'], storage);

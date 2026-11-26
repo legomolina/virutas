@@ -196,6 +196,7 @@ describe('the settings page', () => {
         labels: ['Metric', 'Imperial', 'Imperial precision', 'Language'],
       },
       { heading: 'Test Tool', labels: ['Test setting'] },
+      { heading: 'Saved in this browser', labels: [] },
     ]);
   });
 
@@ -232,6 +233,102 @@ describe('the settings page', () => {
     ];
     const { page } = await openSettings(tools);
 
-    expect(sections(page).map(({ heading }) => heading)).toEqual(['General', 'Other Tool']);
+    expect(sections(page).map(({ heading }) => heading)).toEqual([
+      'General',
+      'Other Tool',
+      'Saved in this browser',
+    ]);
+  });
+
+  describe('Reset all settings', () => {
+    function resetButton(page: HTMLElement, label = 'Reset all settings'): HTMLButtonElement {
+      const match = [...page.querySelectorAll('main button')].find(
+        (candidate) => candidate.textContent.trim() === label,
+      );
+      if (!(match instanceof HTMLButtonElement)) {
+        throw new Error(`No "${label}" button.`);
+      }
+      return match;
+    }
+
+    function dialogButton(label: string): HTMLButtonElement {
+      const match = [...document.querySelectorAll('dialog button')].find(
+        (candidate) => candidate.textContent.trim() === label,
+      );
+      if (!(match instanceof HTMLButtonElement)) {
+        throw new Error(`No dialog button "${label}".`);
+      }
+      return match;
+    }
+
+    /** Settings chosen, so a reset has something to undo. */
+    function chooseSettings(store: SettingsStore): void {
+      store.setUnitSystem('imperial');
+      store.setImperialPrecision(64);
+      store.setCutOptimizerKerf(5);
+      store.setLanguage('es');
+    }
+
+    it('explains that Settings are kept only in this browser, next to a danger button', async () => {
+      const { page } = await openSettings();
+
+      expect(page.querySelector('main')?.textContent).toContain(
+        'Settings are kept only in this browser.',
+      );
+      expect(resetButton(page).getAttribute('variant')).toBe('danger');
+    });
+
+    it('asks for confirmation and keeps every Setting when cancelled', async () => {
+      const { page, fixture } = await openSettings();
+      const store = TestBed.inject(SettingsStore);
+      store.setUnitSystem('imperial');
+      store.setImperialPrecision(64);
+      store.setCutOptimizerKerf(5);
+      await fixture.whenStable();
+
+      resetButton(page).click();
+      await fixture.whenStable();
+      expect(document.querySelector('dialog h2')?.textContent.trim()).toBe('Reset all settings?');
+      dialogButton('Cancel').click();
+      await fixture.whenStable();
+
+      expect(document.querySelector('dialog')).toBeNull();
+      expect(store.unitSystem()).toBe('imperial');
+      expect(store.imperialPrecision()).toBe(64);
+      expect(store.cutOptimizerDefaults().kerfMillimetres).toBe(5);
+    });
+
+    it('resets every Setting, the language included, when confirmed', async () => {
+      const { page, fixture } = await openSettings();
+      const store = TestBed.inject(SettingsStore);
+      chooseSettings(store);
+      await fixture.whenStable();
+
+      resetButton(page, 'Restablecer todos los ajustes').click();
+      await fixture.whenStable();
+      dialogButton('Restablecer todos los ajustes').click();
+      await fixture.whenStable();
+
+      expect(store.unitSystem()).toBe('metric');
+      expect(store.imperialPrecision()).toBe(16);
+      expect(store.cutOptimizerSetByUser().kerf).toBe(false);
+      expect(document.querySelector('dialog')).toBeNull();
+      expect(store.language()).toBe('en');
+      expect(page.querySelector('main h1')?.textContent.trim()).toBe('Settings');
+    });
+
+    it('has no WCAG AA violations with the confirmation open', async () => {
+      const { page, fixture } = await openSettings();
+
+      resetButton(page).click();
+      await fixture.whenStable();
+
+      expect(document.querySelector('dialog')).not.toBeNull();
+      try {
+        await expectNoAxeViolations(document.body);
+      } finally {
+        dialogButton('Cancel').click();
+      }
+    });
   });
 });

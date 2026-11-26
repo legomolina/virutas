@@ -56,6 +56,33 @@ test('the Settings chosen are kept after a reload', async ({ page }) => {
   await expect(cutOptimizerInSpanish.getByLabel('Longitud mínima de retal')).toHaveValue('10"');
 });
 
+test('Reset all settings, from the keyboard, brings back the defaults after a reload', async ({
+  page,
+}) => {
+  await page.goto('/settings');
+  await page.getByRole('radio', { name: 'Imperial' }).check();
+  await page.getByLabel('Imperial precision').selectOption('32');
+  await page.getByRole('main').getByLabel('Language').selectOption('es');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ajustes');
+  const reset = page.getByRole('button', { name: 'Restablecer todos los ajustes' });
+
+  await reset.focus();
+  await page.keyboard.press('Enter');
+  // A danger confirmation opens with focus on Cancel; Tab reaches the confirm button.
+  const dialog = page.getByRole('alertdialog', { name: '¿Restablecer todos los ajustes?' });
+  await expect(dialog.getByRole('button', { name: 'Cancelar' })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(dialog.getByRole('button', { name: 'Restablecer todos los ajustes' })).toBeFocused();
+  await page.keyboard.press('Enter');
+
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Settings');
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Settings');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.getByRole('radio', { name: 'Metric' })).toBeChecked();
+  await expect(page.getByLabel('Imperial precision')).toHaveValue('16');
+});
+
 test('switching the language translates the page in place, keeping focus on the picker', async ({
   page,
 }) => {
