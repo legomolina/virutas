@@ -1,0 +1,82 @@
+# Fails a PR that someone other than the owner opened (an outside contributor
+# or the @claude agent) when it changes a guardrail: workflows, agent
+# configuration and instructions, checks, and lint, test, build and dependency
+# config (the list is in scripts/check-guardrail-paths.mjs). The owner
+# approves such a change with the "guardrails-approved" label: it counts only
+# when the owner added it, and a new push takes it away again. The ruleset on
+# main requires this check.
+#
+# pull_request_target, not pull_request: it runs this workflow and the script
+# as they are on main, so a PR cannot edit them to pass. It is safe because
+# the PR's code is never checked out or run: the changed paths come from the
+# API.
+name: Guardrails
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+
+concurrency:
+  group: guardrails-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  # To take the approval label away when new commits arrive.
+  pull-requests: write
+  issues: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  PR_NUMBER: ${{ github.event.pull_request.number }}
+  AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+  OWNER: ${{ github.repository_owner }}
+  LABEL: guardrails-approved
+
+jobs:
+  guardrail-paths:
+    name: Guardrail paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # The base branch (the default for pull_request_target), never the PR.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      # An approval covers the commits the owner saw, not the ones pushed
+      # after it.
+      - name: Withdraw the approval on new commits
+        if: >-
+          github.event.action == 'synchronize' &&
+          github.event.pull_request.author_association != 'OWNER' &&
+          contains(github.event.pull_request.labels.*.name, 'guardrails-approved')
+        run: gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label "$LABEL"
+
+      # Whoever added the label now on the PR (the latest time it was added),
+      # read from the API: the event payload says only that it is there. An
+      # explicit bash shell runs with pipefail, so a failed API call fails
+      # the check.
+      - name: Find who approved
+        id: approval
+        shell: bash
+        run: |
+          approved_by=''
+          if gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq '.labels[].name' | grep -qx "$LABEL"; then
+            approved_by=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/events" \
+              --jq ".[] | select(.event == \"labeled\" and .label.name == \"$LABEL\") | .actor.login" | tail -n 1)
+          fi
+          echo "by=$approved_by" >> "$GITHUB_OUTPUT"
+
+      # Renames list the old path too, so moving a guardrail away counts.
+      - name: Check the changed paths
+        env:
+          APPROVED_BY: ${{ steps.approval.outputs.by }}
+        shell: bash
+        run: >-
+          gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files"
+          --jq '.[] | .filename, (.previous_filename // empty)'
+          | node scripts/check-guardrail-paths.mjs

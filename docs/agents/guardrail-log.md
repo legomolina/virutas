@@ -6,6 +6,13 @@ Add an entry whenever you add, change or remove a guardrail, or when one catches
 
 Add new entries at the top, in the same shape: a date, then **What happened**, **Root cause** and **Guardrail**. Keep it a list, not a table: Prettier re-aligns a whole table whenever a row widens it, so parallel branches conflict on every line.
 
+- **2026-11-26**
+  - **What happened:** No incident: a review of the `@claude` setup found two gaps. `claude.yml` allowed `Bash(gh pr *)`, which includes `gh pr merge`, and the `main` ruleset needs no approval, so the agent could merge its own PR once CI was green. And nothing stopped a PR from the agent or an outside contributor from changing the workflows, hooks, checks or agent instructions that hold these limits.
+  - **Root cause:** The limits were enforced only by who can trigger the agent, not by what its PRs may change.
+  - **Guardrail:**
+    - `.github/workflows/guardrails.yml` ("Guardrail paths", required by the ruleset) runs `scripts/check-guardrail-paths.mjs` (tested in `scripts/check-guardrail-paths.test.mjs`): a PR not opened by the owner fails when it touches a guardrail path, until the owner adds the `guardrails-approved` label. The label counts only when the owner added it (read from the issue events API, since the agent may edit labels), and a new push to a PR the owner did not open removes it. It runs on `pull_request_target` so the workflow and script come from `main`, and it never checks out the PR's code.
+    - `claude.yml` allows only the `gh pr` subcommands the agent needs, denies `gh pr merge`, and tells the agent never to merge nor change a guardrail path unasked.
+    - No `CODEOWNERS` review: with a single maintainer, GitHub would block the owner's own PRs.
 - **2026-11-25**
   - **What happened:** No incident: set when `public/sitemap.xml` was added for search engines (#142).
   - **Root cause:** The sitemap must list every Tool, and a hand-kept list would miss the next Tool added to the registry.
