@@ -9,8 +9,9 @@
 //   anyone else.
 //
 // Pushes, not commit authors, because anyone can write any author into a
-// commit; the @claude agent, for one, pushes a branch that the owner then
-// opens a PR from. Pushes come from the repository activity API, so for a
+// commit, and an owner's PR can carry someone else's pushes (such as the
+// @claude agent's branch); a PR the agent opens itself is not the owner's at
+// all. Pushes come from the repository activity API, so for a
 // branch in a fork they are unknown, and only the owner pushing the change to
 // a branch of this repository can make it pass.
 //
