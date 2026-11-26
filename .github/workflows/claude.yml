@@ -69,10 +69,12 @@ jobs:
           # Guardrails check (guardrails.yml) fails any change of the agent's
           # to a guardrail path until the owner approves it, and ignores an
           # approval label the agent adds itself.
-          # The model follows the issue's model label (docs/agents/triage-labels.md):
-          # Opus for model:opus, Sonnet otherwise, including events with no issue.
+          # An issue's model label (docs/agents/triage-labels.md) picks the model.
+          # Without one (or on events with no issue, like PR reviews, or a
+          # comment on a PR, which carries the PR's labels, not its issue's)
+          # the action's default model runs, as before.
           claude_args: >-
-            --model ${{ contains(github.event.issue.labels.*.name, 'model:opus') && 'opus' || 'sonnet' }}
+            ${{ contains(github.event.issue.labels.*.name, 'model:opus') && '--model opus' || contains(github.event.issue.labels.*.name, 'model:sonnet') && '--model sonnet' || '' }}
             --append-system-prompt "When asked to implement an issue, follow docs/agents/implement-issue.md, taking its On GitHub branch at each step. Never merge a pull request: the owner merges. Never change a guardrail path listed in scripts/check-guardrail-paths.mjs unless the owner's request asks for that change."
             --allowedTools
             "Bash(pnpm lint)" "Bash(pnpm lint:fix)" "Bash(pnpm typecheck)"
