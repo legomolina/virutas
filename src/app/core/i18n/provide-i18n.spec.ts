@@ -5,6 +5,10 @@ import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 import en from '../../../../public/i18n/en.json';
 import es from '../../../../public/i18n/es.json';
+import {
+  FakeSettingsStorage,
+  provideFakeSettingsStorage,
+} from '../../../testing/fake-settings-storage';
 import { provideI18n } from './provide-i18n';
 
 const SPANISH_INTRO =
@@ -12,14 +16,23 @@ const SPANISH_INTRO =
 const ENGLISH_INTRO =
   'Quick, exact answers for the workshop: convert measurements and plan your cuts.';
 
-function setUp(browserLanguages: readonly string[]): {
+function setUp(
+  browserLanguages: readonly string[],
+  saved?: unknown,
+): {
   http: HttpTestingController;
   transloco: TranslocoService;
   document: Document;
   initialized: Promise<unknown>;
 } {
   vi.spyOn(navigator, 'languages', 'get').mockReturnValue(browserLanguages);
-  TestBed.configureTestingModule({ providers: [provideI18n(), provideHttpClientTesting()] });
+  TestBed.configureTestingModule({
+    providers: [
+      provideI18n(),
+      provideHttpClientTesting(),
+      provideFakeSettingsStorage(new FakeSettingsStorage(saved)),
+    ],
+  });
   return {
     http: TestBed.inject(HttpTestingController),
     transloco: TestBed.inject(TranslocoService),
@@ -61,6 +74,35 @@ describe('provideI18n', () => {
       expect(transloco.translate('home.intro')).toBe(ENGLISH_INTRO);
     },
   );
+
+  it('loads a saved Spanish before the app starts, over an English browser', async () => {
+    const { http, transloco, document, initialized } = setUp(['en-US'], {
+      version: 1,
+      language: 'es',
+    });
+
+    http.expectOne('/i18n/es.json').flush(es);
+    await initialized;
+
+    // Only the saved language was fetched: nothing showed in the browser's first.
+    http.verify();
+    expect(transloco.translate('home.intro')).toBe(SPANISH_INTRO);
+    expect(document.documentElement.lang).toBe('es');
+  });
+
+  it('loads a saved English before the app starts, over a Spanish browser', async () => {
+    const { http, transloco, document, initialized } = setUp(['es-ES'], {
+      version: 1,
+      language: 'en',
+    });
+
+    http.expectOne('/i18n/en.json').flush(en);
+    await initialized;
+
+    http.verify();
+    expect(transloco.translate('home.intro')).toBe(ENGLISH_INTRO);
+    expect(document.documentElement.lang).toBe('en');
+  });
 
   it('still starts the app when no translation file can be loaded', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);

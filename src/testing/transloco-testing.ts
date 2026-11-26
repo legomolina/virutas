@@ -6,6 +6,7 @@ import es from '../../public/i18n/es.json';
 import type { Lang } from '../app/core/i18n/langs';
 import { SOURCE_LANG } from '../app/core/i18n/langs';
 import { translocoAppConfig } from '../app/core/i18n/transloco-app-config';
+import { provideFakeSettingsStorage } from './fake-settings-storage';
 import { TEST_TOOL_TRANSLATIONS } from './test-tool/test-tool';
 
 function isGroup(value: unknown): value is Translation {
@@ -35,6 +36,11 @@ const APP_WIDE: Readonly<Record<Lang, Translation>> = {
  *
  * A Tool's spec passes its scope's files keyed `<scope>/<lang>`:
  * `translocoTesting({ 'unit-converter/en': unitConverterEn, … })`.
+ *
+ * It also saves Settings to an empty in-memory storage rather than the
+ * browser's, which every spec file shares: the settings store follows
+ * Transloco's language and saves it. A spec that needs saved Settings
+ * provides its own with `provideFakeSettingsStorage()`.
  */
 export function translocoTesting(
   scopes: Readonly<Record<string, Translation>> = {},
@@ -44,5 +50,9 @@ export function translocoTesting(
     translocoConfig: translocoAppConfig(SOURCE_LANG),
     preloadLangs: true,
   };
-  return TranslocoTestingModule.forRoot(options);
+  const transloco = TranslocoTestingModule.forRoot(options);
+  return {
+    ...transloco,
+    providers: [...(transloco.providers ?? []), provideFakeSettingsStorage()],
+  };
 }

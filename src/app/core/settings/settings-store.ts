@@ -1,14 +1,24 @@
-import { computed, inject, Service, signal } from '@angular/core';
+import { computed, DestroyRef, inject, Service, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { getBrowserCultureLang, TranslocoService } from '@jsverse/transloco';
-import { filter } from 'rxjs';
+import { getBrowserCultureLang, getBrowserLang, TranslocoService } from '@jsverse/transloco';
+import { filter, skip } from 'rxjs';
 import type { ImperialPrecision } from '../../shared/measurement/show-length.calc';
 import { IMPERIAL_PRECISIONS } from '../../shared/measurement/show-length.calc';
 import type { UnitSystem } from '../../shared/measurement/unit-system';
-import type { CutOptimizerDefaults } from './cut-optimizer-defaults.calc';
-import { cutOptimizerDefaults } from './cut-optimizer-defaults.calc';
+import { initialLang } from '../i18n/initial-lang';
 import type { Lang } from '../i18n/langs';
 import { isLang } from '../i18n/langs';
+import type { CutOptimizerDefaults } from './cut-optimizer-defaults.calc';
+import { cutOptimizerDefaults } from './cut-optimizer-defaults.calc';
+import type { ChosenSettings } from './settings-document.calc';
+import {
+  chosenSettings,
+  isImperialPrecision,
+  isSettingLength,
+  isUnitSystem,
+  settingsDocument,
+} from './settings-document.calc';
+import { SettingsStorage } from './settings-storage';
 
 /** The Cut Optimizer settings a woodworker can set a default for. */
 export type CutOptimizerSetting = 'kerf' | 'trim' | 'minimumOffcutLength';
@@ -25,27 +35,34 @@ function defaultUnitSystem(browserLocale: string | undefined): UnitSystem {
 }
 
 function validLength(millimetres: number): number {
-  if (!Number.isFinite(millimetres) || millimetres < 0) {
+  if (!isSettingLength(millimetres)) {
     throw new RangeError('A length must be a finite number of millimetres, zero or more');
   }
   return millimetres;
 }
 
 /**
- * App-wide settings every Tool reads. They live in memory for the browser
- * session: they survive navigation but not a reload, and nothing is written
- * to browser storage.
+ * App-wide settings every Tool reads, saved in the browser (ADR 0005) through
+ * `SettingsStorage`. Only the values the woodworker chose are saved; the rest
+ * keep following their defaults (the browser, or the Unit System for the Cut
+ * Optimizer defaults). A change saved in another tab is applied here.
  *
  * The language is Transloco's active language: setting it here switches
- * Transloco, and a switch made directly on Transloco shows up here.
+ * Transloco, and a switch made directly on Transloco shows up here and is
+ * saved. A saved language is applied as soon as the store is created, which
+ * the i18n initializer does before the app starts.
  */
 @Service()
 export class SettingsStore {
   private readonly transloco = inject(TranslocoService);
 
-  private readonly unitSystemState = signal(defaultUnitSystem(getBrowserCultureLang()));
+  private readonly storage = inject(SettingsStorage);
 
-  private readonly imperialPrecisionState = signal(DEFAULT_PRECISION);
+  private readonly browserUnitSystem = defaultUnitSystem(getBrowserCultureLang());
+
+  private readonly unitSystemState = signal<UnitSystem | undefined>(undefined);
+
+  private readonly imperialPrecisionState = signal<ImperialPrecision | undefined>(undefined);
 
   private readonly kerfState = signal<number | undefined>(undefined);
 
@@ -53,18 +70,24 @@ export class SettingsStore {
 
   private readonly minimumOffcutLengthState = signal<number | undefined>(undefined);
 
+  /** The language the woodworker chose, or `undefined` while it follows the browser. */
+  private chosenLanguage: Lang | undefined;
+
+  /** True while the store itself switches Transloco, so that switch is not saved as a choice. */
+  private applying = false;
+
   /** The preferred Unit System. */
-  readonly unitSystem = this.unitSystemState.asReadonly();
+  readonly unitSystem = computed(() => this.unitSystemState() ?? this.browserUnitSystem);
 
   /** The denominator Imperial lengths are rounded to: 16 shows lengths to the nearest 1/16". */
-  readonly imperialPrecision = this.imperialPrecisionState.asReadonly();
+  readonly imperialPrecision = computed(() => this.imperialPrecisionState() ?? DEFAULT_PRECISION);
 
   /**
    * The Kerf, Trim and minimum Offcut length new Cut Optimizer jobs start from, in
    * millimetres: what the user set, else the default for the Unit System.
    */
   readonly cutOptimizerDefaults = computed<CutOptimizerDefaults>(() => {
-    const fallback = cutOptimizerDefaults(this.unitSystemState());
+    const fallback = cutOptimizerDefaults(this.unitSystem());
     return {
       kerfMillimetres: this.kerfState() ?? fallback.kerfMillimetres,
       trimMillimetres: this.trimState() ?? fallback.trimMillimetres,
@@ -85,18 +108,42 @@ export class SettingsStore {
     requireSync: true,
   });
 
+  constructor() {
+    this.apply(this.loadSaved(), { languageFallback: undefined });
+    // The first value is the language now active, not a change.
+    const languageChanges = this.transloco.langChanges$
+      .pipe(skip(1), filter(isLang))
+      .subscribe((language) => {
+        this.languageChanged(language);
+      });
+    const stopWatching = this.storage.watch((saved) => {
+      this.apply(chosenSettings(saved), { languageFallback: initialLang(getBrowserLang()) });
+    });
+    inject(DestroyRef).onDestroy(() => {
+      languageChanges.unsubscribe();
+      stopWatching();
+    });
+  }
+
+  /** @throws RangeError when `unitSystem` is not Metric or Imperial. */
   setUnitSystem(unitSystem: UnitSystem): void {
+    if (!isUnitSystem(unitSystem)) {
+      throw new RangeError('The Unit System must be metric or imperial');
+    }
     this.unitSystemState.set(unitSystem);
+    this.save();
   }
 
   /** @throws RangeError when `precision` is not 8, 16, 32 or 64. */
   setImperialPrecision(precision: ImperialPrecision): void {
-    if (!IMPERIAL_PRECISIONS.includes(precision)) {
+    if (!isImperialPrecision(precision)) {
       throw new RangeError(`Imperial precision must be one of ${IMPERIAL_PRECISIONS.join(', ')}`);
     }
     this.imperialPrecisionState.set(precision);
+    this.save();
   }
 
+  /** Switches Transloco, which this store follows and saves. */
   setLanguage(language: Lang): void {
     this.transloco.setActiveLang(language);
   }
@@ -104,19 +151,22 @@ export class SettingsStore {
   /** @throws RangeError when `millimetres` is negative or not a finite number. */
   setCutOptimizerKerf(millimetres: number): void {
     this.kerfState.set(validLength(millimetres));
+    this.save();
   }
 
   /** @throws RangeError when `millimetres` is negative or not a finite number. */
   setCutOptimizerTrim(millimetres: number): void {
     this.trimState.set(validLength(millimetres));
+    this.save();
   }
 
   /** @throws RangeError when `millimetres` is negative or not a finite number. */
   setCutOptimizerMinimumOffcutLength(millimetres: number): void {
     this.minimumOffcutLengthState.set(validLength(millimetres));
+    this.save();
   }
 
-  /** Goes back to the default for the Unit System. */
+  /** Goes back to the default for the Unit System, and stops saving the value. */
   resetCutOptimizerDefault(setting: CutOptimizerSetting): void {
     const state = {
       kerf: this.kerfState,
@@ -124,5 +174,66 @@ export class SettingsStore {
       minimumOffcutLength: this.minimumOffcutLengthState,
     }[setting];
     state.set(undefined);
+    this.save();
+  }
+
+  private languageChanged(language: Lang): void {
+    if (this.applying) {
+      return;
+    }
+    this.chosenLanguage = language;
+    this.save();
+  }
+
+  /**
+   * Takes on `chosen` without saving it. A language not chosen switches
+   * Transloco to `languageFallback`, or leaves it alone when that is undefined.
+   */
+  private apply(
+    chosen: ChosenSettings,
+    { languageFallback }: { readonly languageFallback: Lang | undefined },
+  ): void {
+    this.unitSystemState.set(chosen.unitSystem);
+    this.imperialPrecisionState.set(chosen.imperialPrecision);
+    this.kerfState.set(chosen.kerfMillimetres);
+    this.trimState.set(chosen.trimMillimetres);
+    this.minimumOffcutLengthState.set(chosen.minimumOffcutLengthMillimetres);
+    this.chosenLanguage = chosen.language;
+    const language = chosen.language ?? languageFallback;
+    if (language !== undefined && language !== this.transloco.getActiveLang()) {
+      this.applying = true;
+      try {
+        this.transloco.setActiveLang(language);
+      } finally {
+        this.applying = false;
+      }
+    }
+  }
+
+  /** What was saved, or nothing when storage cannot be read. */
+  private loadSaved(): ChosenSettings {
+    try {
+      return chosenSettings(this.storage.load());
+    } catch {
+      return {};
+    }
+  }
+
+  /** Saves the chosen Settings, best effort: when storage fails they stay in memory. */
+  private save(): void {
+    try {
+      this.storage.save(
+        settingsDocument({
+          unitSystem: this.unitSystemState(),
+          imperialPrecision: this.imperialPrecisionState(),
+          language: this.chosenLanguage,
+          kerfMillimetres: this.kerfState(),
+          trimMillimetres: this.trimState(),
+          minimumOffcutLengthMillimetres: this.minimumOffcutLengthState(),
+        }),
+      );
+    } catch {
+      // Blocked, private mode or full: Settings stay in memory.
+    }
   }
 }
