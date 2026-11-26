@@ -10,12 +10,14 @@ import {
 } from '@angular/core';
 import { getBrowserLang, provideTransloco, TranslocoService } from '@jsverse/transloco';
 import { catchError, firstValueFrom, of } from 'rxjs';
+import { SettingsStore } from '../settings/settings-store';
 import { initialLang } from './initial-lang';
 import { translocoAppConfig } from './transloco-app-config';
 import { TranslationLoader } from './translation-loader';
 
 /**
- * Runtime translation (ADR 0001): starts in the browser's language, loads
+ * Runtime translation (ADR 0001): starts in the language saved with the
+ * Settings, else the browser's (ADR 0005), loads
  * translation files on demand and keeps `<html lang>` on the active language,
  * so assistive technology reads the page in the right language.
  *
@@ -32,6 +34,8 @@ export function provideI18n(): EnvironmentProviders {
     }),
     provideAppInitializer(async () => {
       const transloco = inject(TranslocoService);
+      // Creating the store applies a saved language, so it is the one loaded.
+      inject(SettingsStore);
       return firstValueFrom(
         transloco.load(transloco.getActiveLang()).pipe(catchError(() => of(undefined))),
         { defaultValue: undefined },

@@ -33,6 +33,29 @@ test('the Imperial precision is described by its hint', async ({ page }) => {
   );
 });
 
+test('the Settings chosen are kept after a reload', async ({ page }) => {
+  await page.goto('/settings');
+  await page.getByRole('radio', { name: 'Imperial' }).check();
+  await page.getByLabel('Imperial precision').selectOption('32');
+  const cutOptimizer = page.getByRole('region', { name: 'Cut Optimizer' });
+  await cutOptimizer.getByLabel('Kerf').fill('3/32');
+  await cutOptimizer.getByLabel('Trim').fill('1/4');
+  await cutOptimizer.getByLabel('Minimum Offcut Length').fill('10');
+  await page.getByRole('main').getByLabel('Language').selectOption('es');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ajustes');
+
+  await page.reload();
+
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ajustes');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'es');
+  await expect(page.getByRole('radio', { name: 'Imperial' })).toBeChecked();
+  await expect(page.getByLabel('Precisión imperial')).toHaveValue('32');
+  const cutOptimizerInSpanish = page.getByRole('region', { name: 'Optimizador de cortes' });
+  await expect(cutOptimizerInSpanish.getByLabel('Grosor de corte')).toHaveValue('3/32"');
+  await expect(cutOptimizerInSpanish.getByLabel('Saneado')).toHaveValue('1/4"');
+  await expect(cutOptimizerInSpanish.getByLabel('Longitud mínima de retal')).toHaveValue('10"');
+});
+
 test('switching the language translates the page in place, keeping focus on the picker', async ({
   page,
 }) => {
