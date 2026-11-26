@@ -7,6 +7,13 @@ Add an entry whenever you add, change or remove a guardrail, or when one catches
 Add new entries at the top, in the same shape: a date, then **What happened**, **Root cause** and **Guardrail**. Keep it a list, not a table: Prettier re-aligns a whole table whenever a row widens it, so parallel branches conflict on every line.
 
 - **2026-11-26**
+  - **What happened:** No incident: the owner wanted `ready-for-agent` to start `@claude` by itself, and adding the label did nothing (`claude.yml` listens to comments, not labels).
+  - **Root cause:** Starting the agent needed an `@claude` comment on each issue.
+  - **Guardrail:**
+    - `.github/workflows/claude-ready.yml` runs when an issue gets `ready-for-agent` and when an issue closes, and looks at every open `ready-for-agent` issue each time, so an event the concurrency queue drops is caught by the next. `scripts/pick-ready-issues.mjs` (tested in `scripts/pick-ready-issues.test.mjs`) picks the ones that can start: open, the label added by the owner (read from the issue events, since the agent may edit labels), not `in-progress`, unassigned, not blocked. Each gets `in-progress`, so it never starts twice, and a `workflow_dispatch` of `claude.yml`.
+    - `claude.yml` keeps the one set of permissions and tools. It accepts the dispatch (allowing `github-actions[bot]`, which the action refuses by default), reads the model from the issue's label, tells the agent to report on the issue since nobody is watching, and on failure comments on the issue and removes `in-progress`.
+    - `/create-worktree` stops on an `in-progress` issue, and the picker skips assigned issues, so local and GitHub work never overlap.
+- **2026-11-26**
   - **What happened:** No incident: the model to implement an issue with was only advised by `/create-worktree` at the moment of starting, and `@claude` on GitHub always ran the action's default.
   - **Root cause:** The choice was not recorded on the issue, so neither path could act on it.
   - **Guardrail:** `model:sonnet` / `model:opus` labels, set with `ready-for-agent` (rule in `CLAUDE.md`, table in `docs/agents/triage-labels.md`). `claude.yml` passes `--model` from the label of the issue `@claude` is called on (the action's default model when there is none); `/create-worktree` and `/implement` recommend it and warn when the session runs another model or the label is missing. Only people with triage access (here, only the owner) can set labels, so whoever opens an issue cannot pick a costlier model.

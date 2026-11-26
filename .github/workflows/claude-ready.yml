@@ -1,0 +1,95 @@
+# Starts @claude on every issue that can be implemented now, with no comment
+# needed: when the owner adds `ready-for-agent` to an issue, and when an issue
+# closes (it may have unblocked others). Each run looks at every open
+# `ready-for-agent` issue, not only the event's, so an event dropped by the
+# concurrency queue (it keeps one pending run) is caught by the next one.
+# scripts/pick-ready-issues.mjs picks the ones that can start (open, `ready-for-agent` added by the owner, not
+# `in-progress`, unassigned, not blocked); each gets `in-progress`, so it
+# never starts twice, and a run of claude.yml (workflow_dispatch) that
+# implements it.
+#
+# It never runs the agent itself: claude.yml keeps the one set of
+# permissions, plugins and allowed tools. A dispatch made with GITHUB_TOKEN
+# does start a workflow run, unlike other events it causes.
+name: Claude ready issues
+
+on:
+  issues:
+    types: [labeled, closed]
+
+# One at a time, so two runs never both start the same issue.
+concurrency:
+  group: claude-ready
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write # to add in-progress
+  actions: write # to dispatch claude.yml
+
+jobs:
+  start:
+    name: Start ready issues
+    if: >-
+      (github.event.action == 'labeled' &&
+       github.event.label.name == 'ready-for-agent' &&
+       github.event.sender.login == github.repository_owner) ||
+      github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EVENT_ACTION: ${{ github.event.action }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      # Every open ready-for-agent issue, each with its state, labels, open
+      # blockers, assignees, and who last added ready-for-agent (from its
+      # events: the payload does not say). After a closing, it first waits a
+      # little, so the closed issue no longer counts as a blocker. An explicit
+      # bash shell runs with pipefail, so a failed API call stops it.
+      - name: Gather the candidates
+        id: candidates
+        shell: bash
+        run: |
+          if [ "$EVENT_ACTION" = closed ]; then
+            sleep 10
+          fi
+          numbers=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label ready-for-agent --limit 200 --json number --jq '.[].number')
+          candidates='[]'
+          for number in $numbers; do
+            issue=$(gh api "repos/$GITHUB_REPOSITORY/issues/$number" \
+              --jq '{number, state, labels: [.labels[].name], blockedBy: .issue_dependencies_summary.blocked_by, assigned: (.assignees | length > 0)}')
+            labelled_by=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$number/events" \
+              --jq '.[] | select(.event == "labeled" and .label.name == "ready-for-agent") | .actor.login' | tail -n 1)
+            candidates=$(jq -c --argjson issue "$issue" --arg by "$labelled_by" '. + [$issue + {readyLabelledBy: $by}]' <<< "$candidates")
+          done
+          echo "json=$candidates" >> "$GITHUB_OUTPUT"
+
+      # in-progress first, so a later run never picks the issue again; if
+      # the dispatch then fails, it is taken off again and the run fails
+      # after trying the other issues.
+      - name: Start the agent on each
+        shell: bash
+        env:
+          OWNER: ${{ github.repository_owner }}
+          CANDIDATES: ${{ steps.candidates.outputs.json }}
+        run: |
+          picked=$(node scripts/pick-ready-issues.mjs <<< "$CANDIDATES")
+          failed=0
+          for number in $picked; do
+            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --add-label in-progress
+            if gh workflow run claude.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f issue="$number"; then
+              echo "Started @claude on #$number."
+            else
+              gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --remove-label in-progress
+              echo "::error::Could not start @claude on #$number."
+              failed=1
+            fi
+          done
+          exit "$failed"

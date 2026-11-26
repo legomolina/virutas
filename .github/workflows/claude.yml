@@ -1,5 +1,7 @@
 # Runs Claude when the owner mentions @claude in an issue, a PR comment or a
 # review: it can answer, review again, or implement an issue and open a PR.
+# claude-ready.yml also starts it (workflow_dispatch) to implement an issue
+# that just became ready-for-agent, with no comment needed.
 # It works like a local session: the project's CLAUDE.md, hooks and checks
 # apply, so dependencies are installed first for the hooks and checks to run.
 name: Claude Code
@@ -13,6 +15,12 @@ on:
     types: [opened, assigned]
   pull_request_review:
     types: [submitted]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Number of the issue to implement
+        required: true
+        type: number
 
 env:
   NG_CLI_ANALYTICS: 'false'
@@ -20,8 +28,11 @@ env:
 jobs:
   claude:
     # Only the owner can trigger it: the repo is public, and every run spends
-    # the owner's Claude subscription.
+    # the owner's Claude subscription. A dispatch needs write access, which
+    # only the owner has; claude-ready.yml dispatches only for issues the owner
+    # marked ready-for-agent.
     if: |
+      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.author_association == 'OWNER') ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.author_association == 'OWNER') ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.author_association == 'OWNER') ||
@@ -50,10 +61,41 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
+      # An issue's model label (docs/agents/triage-labels.md) picks the model:
+      # the dispatched issue's, or the labels of the issue or PR the event is
+      # on. Without one (PR reviews have no labels here, and a PR carries its
+      # own labels, not its issue's) the action's default model runs.
+      - name: Choose the model
+        id: model
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ inputs.issue }}
+          EVENT_LABELS: ${{ toJSON(github.event.issue.labels.*.name) }}
+        run: |
+          if [ -n "$ISSUE" ]; then
+            labels=$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]')
+          else
+            labels=$EVENT_LABELS
+          fi
+          args=''
+          if jq -e 'index("model:opus")' <<< "$labels" > /dev/null; then
+            args='--model opus'
+          elif jq -e 'index("model:sonnet")' <<< "$labels" > /dev/null; then
+            args='--model sonnet'
+          fi
+          echo "args=$args" >> "$GITHUB_OUTPUT"
+
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # A dispatch from claude-ready.yml runs as github-actions[bot],
+          # which the action refuses unless it is listed here.
+          allowed_bots: 'github-actions'
+          # A dispatched run has no comment to answer, so it gets the request
+          # here, and reports on the issue because nobody is watching it.
+          prompt: ${{ github.event_name == 'workflow_dispatch' && format('Implement issue #{0} of this repository. Nobody is watching this run, so when you finish, post the summary that docs/agents/implement-issue.md ends with, including the Create PR link, as a comment on the issue (gh issue comment {0}). If you stop early, because the issue is blocked or leaves a decision only the owner can make, say why in that comment and remove its in-progress label (gh issue edit {0} --remove-label in-progress).', inputs.issue) || '' }}
           # The plugin .claude/settings.json enables locally, so CLAUDE.md's
           # skills (tdd, code-review, diagnosing-bugs, pr…) load in CI too.
           plugin_marketplaces: 'https://github.com/anthropics/claude-plugins-official.git'
@@ -69,12 +111,8 @@ jobs:
           # Guardrails check (guardrails.yml) fails any change of the agent's
           # to a guardrail path until the owner approves it, and ignores an
           # approval label the agent adds itself.
-          # An issue's model label (docs/agents/triage-labels.md) picks the model.
-          # Without one (or on events with no issue, like PR reviews, or a
-          # comment on a PR, which carries the PR's labels, not its issue's)
-          # the action's default model runs, as before.
           claude_args: >-
-            ${{ contains(github.event.issue.labels.*.name, 'model:opus') && '--model opus' || contains(github.event.issue.labels.*.name, 'model:sonnet') && '--model sonnet' || '' }}
+            ${{ steps.model.outputs.args }}
             --append-system-prompt "When asked to implement an issue, follow docs/agents/implement-issue.md, taking its On GitHub branch at each step. Never merge a pull request: the owner merges. Never change a guardrail path listed in scripts/check-guardrail-paths.mjs unless the owner's request asks for that change."
             --allowedTools
             "Bash(pnpm lint)" "Bash(pnpm lint:fix)" "Bash(pnpm typecheck)"
@@ -85,3 +123,21 @@ jobs:
             "Bash(gh pr diff *)" "Bash(gh pr checks *)" "Bash(gh pr comment *)"
             "Bash(gh pr edit *)" "Bash(gh pr list *)"
             --disallowedTools "Bash(gh pr merge *)"
+
+  # A dispatched run that fails says so on its issue and frees it, so the owner
+  # sees it and can start it again (remove and re-add ready-for-agent).
+  report-failure:
+    needs: claude
+    if: failure() && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE: ${{ inputs.issue }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - run: |
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "The agent could not finish this issue: $RUN_URL. To start it again, remove and re-add ready-for-agent."
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label in-progress

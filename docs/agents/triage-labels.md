@@ -14,6 +14,16 @@ When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the 
 
 Edit the "Label in our tracker" column to match whatever vocabulary you actually use.
 
+## Starting the agent
+
+Adding `ready-for-agent` starts `@claude` on the issue on GitHub (`.github/workflows/claude-ready.yml`), with no comment needed, as long as the owner added the label, the issue is open and unassigned, and no open issue blocks it. A blocked issue starts when its last blocker closes. Each started issue gets `in-progress`, so it never starts twice:
+
+| Label         | Meaning                                                                                                         |
+| ------------- | --------------------------------------------------------------------------------------------------------------- |
+| `in-progress` | An agent on GitHub is implementing the issue. Removed when the run fails or stops early, so it can start again. |
+
+To take an issue locally instead, run `/create-worktree` (or `/implement`) before it is ready or unblocked: it assigns the issue, and an assigned issue never starts on GitHub. To start an issue again, remove `in-progress` if it is there, then remove and re-add `ready-for-agent`.
+
 ## Model labels
 
 Every issue labelled `ready-for-agent` also gets exactly one model label, the model recommended to implement it:
