@@ -184,12 +184,33 @@ describe('ConfirmService', () => {
     expect(document.activeElement).toBe(button('Cancel'));
   });
 
+  it('leaves focus off Cancel for the primary variant', async () => {
+    const { confirm } = setup();
+    void confirm.confirm(DELETE);
+    await render();
+
+    expect(document.activeElement).not.toBe(button('Cancel'));
+  });
+
+  it('leaves focus where the page moved it when it closes', async () => {
+    const { confirm } = setup();
+    const other = document.body.appendChild(document.createElement('button'));
+    const answer = confirm.confirm(DELETE);
+    await render();
+
+    other.focus();
+    dialog().close();
+    await answer;
+
+    expect(document.activeElement).toBe(other);
+  });
+
   it('fails with an Error while another confirmation is open', async () => {
     const { confirm } = setup();
     void confirm.confirm(DELETE);
     await render();
 
-    await expect(confirm.confirm(DELETE)).rejects.toThrow(Error);
+    await expect(confirm.confirm(DELETE)).rejects.toThrow('A confirmation is already open');
   });
 
   it('accepts a new confirmation once the previous one closed', async () => {
