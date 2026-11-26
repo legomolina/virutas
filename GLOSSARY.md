@@ -43,6 +43,13 @@ The unit system based on inches and feet, where lengths are commonly written wit
 _Avoid_: US customary, English units
 _Spanish_: Imperial
 
+### Settings
+
+**Settings**:
+The woodworker's preferences that outlast a single job and a single visit: the global ones (preferred Unit System, Imperial precision, language) and each Tool's defaults, such as the Kerf a new Cutting Plan starts from. Only the values the woodworker chose are kept; the rest follow the browser or the Unit System. Not the values of the job in progress.
+_Avoid_: Preferences, config, options, using "settings" for the values of the current job
+_Spanish_: Ajustes
+
 ### Cut Optimizer
 
 **Cut List**:
