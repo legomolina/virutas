@@ -37,6 +37,13 @@ async function setUp(): Promise<RouterTestingHarness> {
 }
 
 describe('page metadata', () => {
+  beforeAll(async () => {
+    // The first navigation to a page loads its lazy component, which takes seconds in a cold test
+    // run (about 4 s for the home page alone, more under a full parallel run). Load them once here,
+    // under the hook timeout, so the first test does not spend its 5 s timeout on it.
+    await Promise.all(appRoutes([testTool()]).map(async (route) => route.loadComponent?.()));
+  });
+
   afterEach(() => {
     // jsdom keeps one document across tests: start each one from an empty head.
     document.head.replaceChildren();
