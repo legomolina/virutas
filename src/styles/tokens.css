@@ -43,6 +43,7 @@
   --danger: #b0291f;
   --danger-soft: #fbe4e0;
   --focus: #2a2017;
+  --scrim: #2a20178c;
   --link: var(--tape-ink);
 
   color-scheme: light;
@@ -66,6 +67,7 @@
     --danger: #ff8f84;
     --danger-soft: #3d1a16;
     --focus: #f7c032;
+    --scrim: #0009;
 
     color-scheme: dark;
   }
@@ -88,6 +90,7 @@
   --danger: #ff8f84;
   --danger-soft: #3d1a16;
   --focus: #f7c032;
+  --scrim: #0009;
 
   color-scheme: dark;
 }
