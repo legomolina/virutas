@@ -1,0 +1,19 @@
+<dialog #dialog closedby="closerequest" [attr.aria-labelledby]="headingId" (close)="closed()">
+  <header>
+    <h2 [id]="headingId">{{ heading() }}</h2>
+    <button
+      #closeButton
+      type="button"
+      [attr.aria-label]="'dialog.close' | transloco"
+      (click)="close()"
+    >
+      <wt-icon name="x" />
+    </button>
+  </header>
+  <div>
+    <ng-content />
+  </div>
+  <footer>
+    <ng-content select="[dialog-action]" />
+  </footer>
+</dialog>
