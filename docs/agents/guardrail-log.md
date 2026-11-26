@@ -7,6 +7,10 @@ Add an entry whenever you add, change or remove a guardrail, or when one catches
 Add new entries at the top, in the same shape: a date, then **What happened**, **Root cause** and **Guardrail**. Keep it a list, not a table: Prettier re-aligns a whole table whenever a row widens it, so parallel branches conflict on every line.
 
 - **2026-11-26**
+  - **What happened:** After #157, every dispatch of `claude.yml` failed with "The expression is not closed", and `@claude` stopped working on `main`: the dispatch prompt was a plain YAML scalar containing `issue #{0}`, and ` #` starts a YAML comment, which cut the `${{ … }}` expression short.
+  - **Root cause:** The workflow was only checked as YAML, where the cut line is valid; only GitHub's expression parser sees the problem.
+  - **Guardrail:** The prompt is a block scalar (`>-`), where `#` is text, with a comment saying why. Pushing a branch makes GitHub parse its changed workflows, so a broken one shows up as a failed run on the branch before it reaches `main`.
+- **2026-11-26**
   - **What happened:** No incident: the owner wanted `ready-for-agent` to start `@claude` by itself, and adding the label did nothing (`claude.yml` listens to comments, not labels).
   - **Root cause:** Starting the agent needed an `@claude` comment on each issue.
   - **Guardrail:**
