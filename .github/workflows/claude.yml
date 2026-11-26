@@ -61,6 +61,16 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
+      # For the a11y-auditor subagent (docs/agents/implement-issue.md, step 4):
+      # the Playwright MCP server from .mcp.json, driving the Google Chrome the
+      # runner already has instead of downloading the Chromium its Playwright
+      # version wants. It opens the browser only when a tool is used. The
+      # agent starts the dev server itself, only when the UI changed.
+      - name: Configure the Playwright MCP server
+        run: >-
+          jq '{mcpServers: {playwright: (.mcpServers.playwright | .args |= map(if . == "chromium" then "chrome" else . end))}}'
+          .mcp.json > "$RUNNER_TEMP/mcp.json"
+
       # An issue's model label (docs/agents/triage-labels.md) picks the model:
       # the dispatched issue's, or the labels of the issue or PR the event is
       # on. Without one (PR reviews have no labels here, and a PR carries its
@@ -102,7 +112,7 @@ jobs:
           # A block scalar, not a plain one: there, the ' #' of 'issue #{0}'
           # would start a YAML comment and cut the expression short.
           prompt: >-
-            ${{ github.event_name == 'workflow_dispatch' && format('Implement issue #{0} of this repository. Nobody is watching this run, so when you finish, post the summary that docs/agents/implement-issue.md ends with, including the Create PR link, as a comment on the issue (gh issue comment {0}). If you stop early, because the issue is blocked or leaves a decision only the owner can make, say why in that comment and remove its in-progress label (gh issue edit {0} --remove-label in-progress).', inputs.issue) || '' }}
+            ${{ github.event_name == 'workflow_dispatch' && format('Implement issue #{0} of this repository. Nobody is watching this run, so when you finish, post the summary that docs/agents/implement-issue.md ends with, including the PR link, as a comment on the issue (gh issue comment {0}). If you stop early, because the issue is blocked or leaves a decision only the owner can make, say why in that comment and remove its in-progress label (gh issue edit {0} --remove-label in-progress).', inputs.issue) || '' }}
           # The plugin .claude/settings.json enables locally, so CLAUDE.md's
           # skills (tdd, code-review, diagnosing-bugs, pr…) load in CI too.
           plugin_marketplaces: 'https://github.com/anthropics/claude-plugins-official.git'
@@ -113,7 +123,8 @@ jobs:
           # file, so a comment can be as short as "implement this issue".
           # Allowed tools: editing files (a comment-started run gets it from
           # the action, a dispatched one only from this list, so without it a
-          # dispatched run could not write a file), the commands the project
+          # dispatched run could not write a file), the Playwright browser
+          # tools and the dev server for the a11y-auditor, the commands the project
           # allows locally
           # (.claude/settings.json), plus mutation testing, and git and gh to
           # branch, commit and push. gh pr is limited to the subcommands the
@@ -124,11 +135,12 @@ jobs:
           claude_args: >-
             ${{ steps.model.outputs.args }}
             --append-system-prompt "When asked to implement an issue, follow docs/agents/implement-issue.md, taking its On GitHub branch at each step. Never merge a pull request: the owner merges. Never change a guardrail path listed in scripts/check-guardrail-paths.mjs unless the owner's request asks for that change."
+            --mcp-config ${{ runner.temp }}/mcp.json
             --allowedTools
-            "Edit" "Write" "MultiEdit"
+            "Edit" "Write" "MultiEdit" "mcp__playwright"
             "Bash(pnpm lint)" "Bash(pnpm lint:fix)" "Bash(pnpm typecheck)"
             "Bash(pnpm test:ci)" "Bash(pnpm test:ci *)" "Bash(pnpm build)"
-            "Bash(pnpm i18n:check)" "Bash(pnpm exec ng test *)" "Bash(pnpm mutation)"
+            "Bash(pnpm i18n:check)" "Bash(pnpm start --port 4200)" "Bash(pnpm exec ng test *)" "Bash(pnpm mutation)"
             "Bash(git *)" "Bash(gh issue *)" "Bash(gh run *)"
             "Bash(gh pr create *)" "Bash(gh pr view)" "Bash(gh pr view *)"
             "Bash(gh pr diff *)" "Bash(gh pr checks *)" "Bash(gh pr comment *)"

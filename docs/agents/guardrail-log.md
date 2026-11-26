@@ -7,6 +7,18 @@ Add an entry whenever you add, change or remove a guardrail, or when one catches
 Add new entries at the top, in the same shape: a date, then **What happened**, **Root cause** and **Guardrail**. Keep it a list, not a table: Prettier re-aligns a whole table whenever a row widens it, so parallel branches conflict on every line.
 
 - **2026-11-26**
+  - **What happened:** On GitHub, the agent skipped the `a11y-auditor` (keyboard, focus, announcements: what axe cannot see), so a UI issue such as #150 (`wt-dialog`) reached a PR with no such audit anywhere.
+  - **Root cause:** `claude.yml`'s runner had no dev server, no browser and no Playwright MCP server, so `implement-issue.md` ran the auditor locally only.
+  - **Guardrail:** `claude.yml` loads the Playwright MCP server from `.mcp.json` (same pinned version), pointed at the runner's Google Chrome because its Playwright version wants a different Chromium, and allows `mcp__playwright` and `pnpm start --port 4200`. `implement-issue.md` runs the auditor on GitHub too: only when the UI changed, the agent starts the dev server in the background and passes its URL, so runs without UI changes pay nothing for it. e2e stays with CI.
+- **2026-11-26**
+  - **What happened:** On GitHub, the agent ended its run as soon as it pushed, so a failing CI job (e2e above all, which it cannot run without a browser) waited for the owner to notice and ask for a fix.
+  - **Root cause:** `implement-issue.md` watched CI only locally.
+  - **Guardrail:** Step 6 (watch CI, fix red jobs, update a branch behind `main`, treat retried e2e failures as failures) now applies on GitHub too, rerunning `gh pr checks --watch` when the Bash tool's 10-minute limit cuts it. A red Guardrail paths check is left to the owner. The work is done only with every check green.
+- **2026-11-26**
+  - **What happened:** The first runs started by `ready-for-agent` (#149, #150) finished with a "Create PR" link: the owner still had to open each PR by hand.
+  - **Root cause:** `implement-issue.md` told the agent not to open PRs on GitHub, because the automatic review ran only on the owner's PRs.
+  - **Guardrail:** The agent opens its PR with `gh pr create` on GitHub too. `claude-code-review.yml` also reviews PRs by `claude[bot]` (a `[bot]` login belongs to an App, so no person can take it), allowing that bot in the action. CI runs on them because the App's token, unlike `GITHUB_TOKEN`, triggers workflows, and "Guardrail paths" already fails any guardrail change in a PR the owner did not open.
+- **2026-11-26**
   - **What happened:** The first run started by `ready-for-agent` (#149) read the issue and planned the work, but every file write was refused ("you have not granted it yet"). With nobody to approve it, the agent stopped, explained the cause on the issue and removed `in-progress`, without trying to write through Bash or editing the workflow.
   - **Root cause:** `claude.yml`'s `--allowedTools` listed only Bash commands. A comment-started run (tag mode) gets the file-editing tools from the action, but a dispatched run (agent mode) gets only the list.
   - **Guardrail:** `Edit`, `Write` and `MultiEdit` are in `--allowedTools`, with a comment saying why.

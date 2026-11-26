@@ -3,8 +3,9 @@
 # is in scripts/check-guardrail-paths.mjs) unless the owner opened it and
 # nobody else pushed to its branch, or the owner added the
 # "guardrails-approved" label after the last push by anyone else. Pushes, not
-# commit authors, because commit authors can be forged; the @claude agent
-# pushes a branch that the owner then opens a PR from. The ruleset on main
+# commit authors, because commit authors can be forged, and an owner's PR can
+# carry someone else's pushes (such as the @claude agent's branch). A PR the
+# agent opens itself is not the owner's, so it fails too. The ruleset on main
 # requires this check.
 #
 # pull_request_target, not pull_request: it runs this workflow and the script
