@@ -26,17 +26,62 @@ env:
   NG_CLI_ANALYTICS: 'false'
 
 jobs:
-  claude:
-    # Only the owner can trigger it: the repo is public, and every run spends
-    # the owner's Claude subscription. A dispatch needs write access, which
-    # only the owner has; claude-ready.yml dispatches only for issues the owner
-    # marked ready-for-agent.
+  # Only the owner can trigger it: the repo is public, and every run spends the
+  # owner's Claude subscription. A dispatch needs write access, which only the
+  # owner has; claude-ready.yml dispatches only for issues the owner marked
+  # ready-for-agent.
+  #
+  # One agent per issue: a run on an issue that already has in-progress does
+  # not start, and a run that starts on an issue marks it in-progress (a
+  # dispatched one comes marked by claude-ready.yml), so claude-ready.yml does
+  # not start a second one either. PR events are not about one issue.
+  claim:
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.author_association == 'OWNER') ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.author_association == 'OWNER') ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.author_association == 'OWNER') ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) && github.event.issue.author_association == 'OWNER')
+    # One claim at a time per issue, so two requests a second apart cannot
+    # both find it free.
+    concurrency:
+      group: claude-claim-${{ inputs.issue || github.event.issue.number || github.run_id }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    outputs:
+      proceed: ${{ steps.claim.outputs.proceed }}
+      issue: ${{ steps.claim.outputs.issue }}
+    steps:
+      - name: Claim the issue
+        id: claim
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          ON_PR: ${{ github.event.issue.pull_request != null }}
+          ISSUE: ${{ inputs.issue || github.event.issue.number }}
+        run: |
+          if [ "$EVENT_NAME" = workflow_dispatch ]; then
+            echo "issue=$ISSUE" >> "$GITHUB_OUTPUT"
+          elif [ -n "$ISSUE" ] && [ "$ON_PR" != true ]; then
+            labels=$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '.labels[].name')
+            if grep -qxF in-progress <<< "$labels"; then
+              gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" \
+                --body "An agent is already working on this issue (it has the in-progress label), so this request did not start. Remove in-progress to start another run."
+              echo "proceed=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label in-progress
+            echo "issue=$ISSUE" >> "$GITHUB_OUTPUT"
+          fi
+          echo "proceed=true" >> "$GITHUB_OUTPUT"
+
+  claude:
+    needs: claim
+    if: needs.claim.outputs.proceed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -45,6 +90,8 @@ jobs:
       issues: read
       id-token: write
       actions: read # lets Claude read CI results on PRs
+    outputs:
+      unpushed: ${{ steps.unpushed.outputs.branches }}
 
     steps:
       # No persisted GITHUB_TOKEN (read-only): checkout v7 keeps it in an
@@ -61,14 +108,17 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
-      # For the a11y-auditor subagent (docs/agents/implement-issue.md, step 4):
-      # the Playwright MCP server from .mcp.json, driving the Google Chrome the
-      # runner already has instead of downloading the Chromium its Playwright
-      # version wants. It opens the browser only when a tool is used. The
-      # agent starts the dev server itself, only when the UI changed.
-      - name: Configure the Playwright MCP server
+      # For the a11y-auditor subagent (docs/agents/implement-issue.md, step 4),
+      # the MCP servers from .mcp.json: Playwright, driving the Google Chrome
+      # the runner already has instead of downloading the Chromium its
+      # Playwright version wants (it opens the browser only when a tool is
+      # used), and the Angular CLI, whose devserver_start keeps the dev server
+      # running while background tasks are off; it runs the CLI the lockfile pins
+      # rather than an unpinned npx download. The agent starts it only when the
+      # UI changed.
+      - name: Configure the MCP servers
         run: >-
-          jq '{mcpServers: {playwright: (.mcpServers.playwright | .args |= map(if . == "chromium" then "chrome" else . end))}}'
+          jq '.mcpServers.playwright.args |= map(if . == "chromium" then "chrome" else . end) | .mcpServers."angular-cli" = {command: "pnpm", args: ["exec", "ng", "mcp"]}'
           .mcp.json > "$RUNNER_TEMP/mcp.json"
 
       # An issue's model label (docs/agents/triage-labels.md) picks the model:
@@ -100,6 +150,13 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Nothing runs in the background: a run ends when Claude ends its
+          # turn, so a subagent or command left running would be lost (#151
+          # ended "waiting" for its reviews, with its work unpushed). Each
+          # command may take 10 minutes by default, enough for
+          # gh pr checks --watch.
+          settings: >-
+            {"env": {"CLAUDE_CODE_DISABLE_BACKGROUND_TASKS": "1", "BASH_DEFAULT_TIMEOUT_MS": "600000"}}
           # A dispatch from claude-ready.yml runs as github-actions[bot],
           # which the action refuses unless it is listed here.
           allowed_bots: 'github-actions'
@@ -124,9 +181,9 @@ jobs:
           # Allowed tools: editing files (a comment-started run gets it from
           # the action, a dispatched one only from this list, so without it a
           # dispatched run could not write a file), the Playwright browser
-          # tools and the dev server for the a11y-auditor, the commands the project
-          # allows locally
-          # (.claude/settings.json), plus mutation testing, and git and gh to
+          # tools and the Angular dev server for the a11y-auditor, the
+          # package.json scripts (never pnpm exec: a single spec runs with
+          # pnpm test --watch=false --include <file>), and git and gh to
           # branch, commit and push. gh pr is limited to the subcommands the
           # agent needs and merging is denied: only the owner merges. The
           # Guardrails check (guardrails.yml) fails any change of the agent's
@@ -134,18 +191,59 @@ jobs:
           # approval label the agent adds itself.
           claude_args: >-
             ${{ steps.model.outputs.args }}
-            --append-system-prompt "When asked to implement an issue, follow docs/agents/implement-issue.md, taking its On GitHub branch at each step. Never merge a pull request: the owner merges. Never change a guardrail path listed in scripts/check-guardrail-paths.mjs unless the owner's request asks for that change."
+            --append-system-prompt "When asked to implement an issue, follow docs/agents/implement-issue.md, taking its On GitHub branch at each step. Never merge a pull request: the owner merges. Never change a guardrail path listed in scripts/check-guardrail-paths.mjs unless the owner's request asks for that change. Ending your turn ends this run: never end it to wait for anything, and run subagents in the foreground. Run one command per Bash call, without pipes, cd or redirections, and read or change files with Read, Edit and Write. Run the project's tools through its package.json scripts (pnpm lint, pnpm test --watch=false --include <spec file>…), never pnpm exec."
             --mcp-config ${{ runner.temp }}/mcp.json
             --allowedTools
             "Edit" "Write" "MultiEdit" "mcp__playwright"
+            "mcp__angular-cli__devserver_start" "mcp__angular-cli__devserver_wait_for_build" "mcp__angular-cli__devserver_stop"
             "Bash(pnpm lint)" "Bash(pnpm lint:fix)" "Bash(pnpm typecheck)"
-            "Bash(pnpm test:ci)" "Bash(pnpm test:ci *)" "Bash(pnpm build)"
-            "Bash(pnpm i18n:check)" "Bash(pnpm start --port 4200)" "Bash(pnpm exec ng test *)" "Bash(pnpm mutation)"
+            "Bash(pnpm test *)" "Bash(pnpm test:ci)" "Bash(pnpm test:tooling)"
+            "Bash(pnpm build)" "Bash(pnpm mutation)"
+            "Bash(pnpm i18n:check)" "Bash(pnpm specs:check)"
+            "Bash(pnpm tokens)" "Bash(pnpm tokens:check)" "Bash(pnpm sitemap)" "Bash(pnpm sitemap:check)"
+            "Bash(pnpm prettier)" "Bash(pnpm prettier:fix)" "Bash(pnpm eslint)" "Bash(pnpm eslint:fix)"
+            "Bash(pnpm stylelint)" "Bash(pnpm stylelint:fix)"
             "Bash(git *)" "Bash(gh issue *)" "Bash(gh run *)"
             "Bash(gh pr create *)" "Bash(gh pr view)" "Bash(gh pr view *)"
             "Bash(gh pr diff *)" "Bash(gh pr checks *)" "Bash(gh pr comment *)"
             "Bash(gh pr edit *)" "Bash(gh pr list *)"
             --disallowedTools "Bash(gh pr merge *)"
+
+      # Commits the run left on a branch it never pushed would go with the
+      # runner. This job cannot push (read-only token, which the agent could
+      # otherwise use), so it bundles them for the rescue job and fails, so
+      # the run does not pass for a success.
+      - name: Keep unpushed commits
+        id: unpushed
+        if: always()
+        shell: bash
+        run: |
+          # Fresh remote refs, however the agent pushed (a public repo needs
+          # no credentials to fetch).
+          if ! git fetch --quiet origin; then
+            echo "::warning::Could not fetch origin: every local branch may count as unpushed."
+          fi
+          branches=()
+          for branch in $(git for-each-ref --format='%(refname:lstrip=2)' refs/heads); do
+            if [ "$branch" != main ] && [ "$(git rev-list --count "$branch" --not --remotes)" -gt 0 ]; then
+              branches+=("$branch")
+            fi
+          done
+          if [ "${#branches[@]}" -gt 0 ]; then
+            git bundle create "$RUNNER_TEMP/unpushed.bundle" "${branches[@]}"
+            echo "branches=${branches[*]}" >> "$GITHUB_OUTPUT"
+            echo "::error::The run ended with unpushed commits (see the rescue job)."
+          fi
+      - name: Upload the unpushed commits
+        if: always() && steps.unpushed.outputs.branches != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: unpushed-commits
+          path: ${{ runner.temp }}/unpushed.bundle
+          retention-days: 7
+      - name: Fail on unpushed commits
+        if: always() && steps.unpushed.outputs.branches != ''
+        run: exit 1
 
   # A dispatched run says on its issue that it started, with the model and a
   # link to follow it, since nobody asked for it in a comment. It names the
@@ -167,8 +265,8 @@ jobs:
           gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" \
             --body "Claude started implementing this issue with $model. Follow it here: $RUN_URL"
 
-  # A dispatched run that fails says so on its issue and frees it, so the owner
-  # sees it and can start it again (remove and re-add ready-for-agent).
+  # A dispatched run that fails says so on its issue (release frees it), so the
+  # owner sees it and can start it again (add ready-for-agent back).
   report-failure:
     needs: claude
     if: failure() && github.event_name == 'workflow_dispatch'
@@ -182,5 +280,85 @@ jobs:
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       - run: |
-          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "The agent could not finish this issue: $RUN_URL. To start it again, remove and re-add ready-for-agent."
-          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label in-progress
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "The agent could not finish this issue: $RUN_URL. To start it again, add ready-for-agent back."
+
+  # Pushes the branches a run left unpushed (see "Keep unpushed commits") and
+  # says where they are on the run's issue. Its input comes from the job the
+  # agent ran in, so it trusts none of it: it takes only well-formed branch
+  # names and pushes each to a new rescue/<run id>/<branch>, never to an
+  # existing branch. A push made with this token starts no CI: the owner
+  # opens a PR from the branch, or starts the issue again.
+  rescue:
+    needs: [claim, claude]
+    if: always() && needs.claude.outputs.unpushed != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BRANCHES: ${{ needs.claude.outputs.unpushed }}
+      ISSUE: ${{ needs.claim.outputs.issue }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v8
+        with:
+          name: unpushed-commits
+          path: ${{ runner.temp }}
+      - shell: bash
+        run: |
+          pushed=()
+          failed=0
+          for branch in $BRANCHES; do
+            if ! [[ "$branch" =~ ^(feat|fix|chore|docs|test|refactor|claude)/[A-Za-z0-9._/-]+$ ]]; then
+              echo "::error::Skipped a branch with an unexpected name."
+              failed=1
+              continue
+            fi
+            target="rescue/$GITHUB_RUN_ID/$branch"
+            if git fetch "$RUNNER_TEMP/unpushed.bundle" "refs/heads/$branch:refs/heads/$target" &&
+              git push origin "refs/heads/$target:refs/heads/$target"; then
+              pushed+=("\`$target\`")
+            else
+              echo "::error::Could not push a rescued branch."
+              failed=1
+            fi
+          done
+          if [ -n "$ISSUE" ] && [ "${#pushed[@]}" -gt 0 ]; then
+            gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" \
+              --body "The agent ended without pushing its last commits ($RUN_URL). They are now on ${pushed[*]}: open a PR from it, or start the issue again."
+          fi
+          exit "$failed"
+
+  # However the run on an issue ends (done, stopped early, failed, cancelled,
+  # or only answered a question), its issue keeps in-progress only while an
+  # open PR will close it. Without one, ready-for-agent goes too, so the next
+  # closing does not start it again (and again, if it is stuck): the owner
+  # re-adds ready-for-agent to start it.
+  release:
+    needs: [claim, claude]
+    if: always() && needs.claim.outputs.issue != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE: ${{ needs.claim.outputs.issue }}
+    steps:
+      - run: |
+          open_prs=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json closingIssuesReferences \
+            --jq "[.[] | select(any(.closingIssuesReferences[]; .number == $ISSUE))] | length")
+          labels=$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '.labels[].name')
+          if [ "$open_prs" -eq 0 ]; then
+            for label in in-progress ready-for-agent; do
+              if grep -qxF "$label" <<< "$labels"; then
+                gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "$label"
+              fi
+            done
+          fi

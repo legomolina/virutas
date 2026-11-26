@@ -18,11 +18,11 @@ Edit the "Label in our tracker" column to match whatever vocabulary you actually
 
 Adding `ready-for-agent` starts `@claude` on the issue on GitHub (`.github/workflows/claude-ready.yml`), with no comment needed, as long as the owner added the label, the issue is open and unassigned, and no open issue blocks it. A blocked issue starts when its last blocker closes. Each started issue gets `in-progress`, so it never starts twice, and a comment with the model and a link to the run. The run's Summary page shows Claude's closing report.
 
-| Label         | Meaning                                                                                                         |
-| ------------- | --------------------------------------------------------------------------------------------------------------- |
-| `in-progress` | An agent on GitHub is implementing the issue. Removed when the run fails or stops early, so it can start again. |
+| Label         | Meaning                                                                                                                                                                                                                                                                                                                  |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `in-progress` | An agent on GitHub is working on the issue, started by `ready-for-agent` or by an `@claude` comment. While it is there, another `@claude` on the issue does not start. Removed when the run ends without an open PR that closes the issue, together with `ready-for-agent`, so the issue does not start again by itself. |
 
-To take an issue locally instead, run `/create-worktree` (or `/implement`) before it is ready or unblocked: it assigns the issue, and an assigned issue never starts on GitHub. To start an issue again, remove `in-progress` if it is there, then remove and re-add `ready-for-agent`.
+To take an issue locally instead, run `/create-worktree` (or `/implement`) before it is ready or unblocked: it assigns the issue, and an assigned issue never starts on GitHub. To start an issue again, add `ready-for-agent` back (after a run that ended without a PR, both labels are already gone).
 
 ## Model labels
 
