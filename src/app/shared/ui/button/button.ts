@@ -7,6 +7,7 @@ import { Component, input } from '@angular/core';
  * for the one action a view exists for (at most one per view); the default is
  * `secondary`. The native element keeps its own `disabled`, `type` and
  * `aria-label`; prefer leaving it enabled and explaining with a message.
+ * Use `variant="danger"` for the action that confirms destroying something.
  * Use `size="small"` for a secondary action repeated inside a row or list
  * (such as Copy on a result): it is shorter and quieter, but still a
  * comfortable target (at least 32px tall).
@@ -23,7 +24,7 @@ import { Component, input } from '@angular/core';
   host: { '[attr.variant]': 'variant()', '[attr.size]': 'size()' },
 })
 export class Button {
-  readonly variant = input<'primary' | 'secondary'>('secondary');
+  readonly variant = input<'primary' | 'secondary' | 'danger'>('secondary');
 
   readonly size = input<'default' | 'small'>('default');
 }

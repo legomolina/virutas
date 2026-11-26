@@ -1,0 +1,14 @@
+<wt-dialog
+  [heading]="heading()"
+  [alert]="variant() === 'danger'"
+  [open]="open()"
+  (openChange)="onOpenChange($event)"
+>
+  <p>{{ message() }}</p>
+  <button #cancel wt-button dialog-action type="button" (click)="answer(false)">
+    {{ cancelLabel() ?? ('confirm.cancel' | transloco) }}
+  </button>
+  <button wt-button dialog-action type="button" [variant]="variant()" (click)="answer(true)">
+    {{ confirmLabel() }}
+  </button>
+</wt-dialog>

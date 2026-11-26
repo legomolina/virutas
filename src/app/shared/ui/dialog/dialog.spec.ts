@@ -11,7 +11,7 @@ import { Dialog } from './dialog';
   imports: [Dialog],
   template: `
     <button type="button" (click)="open.set(true)">Reset all settings</button>
-    <wt-dialog [heading]="heading()" [(open)]="open">
+    <wt-dialog [heading]="heading()" [alert]="alert()" [(open)]="open">
       <p>Your Settings go back to their defaults.</p>
       <button dialog-action type="button" (click)="open.set(false)">Cancel</button>
       <button dialog-action type="button">Reset</button>
@@ -22,6 +22,7 @@ import { Dialog } from './dialog';
 class Host {
   readonly open = signal(false);
   readonly heading = signal('Reset all settings?');
+  readonly alert = signal(false);
 }
 
 function dialog(root: HTMLElement): HTMLDialogElement {
@@ -246,6 +247,21 @@ describe('Dialog', () => {
     expect(actions.map((action) => action.textContent.trim())).toEqual(['Cancel', 'Reset']);
     expect(actions[0]?.parentElement).not.toBe(body?.parentElement);
     expect(actions[0]?.parentElement).toBe(actions[1]?.parentElement);
+  });
+
+  it('is a plain dialog unless it is an alert', async () => {
+    const { root } = await render();
+
+    expect(dialog(root).hasAttribute('role')).toBe(false);
+  });
+
+  it('has the alertdialog role when it is an alert', async () => {
+    const { fixture, root } = await render();
+
+    fixture.componentInstance.alert.set(true);
+    await fixture.whenStable();
+
+    expect(dialog(root).getAttribute('role')).toBe('alertdialog');
   });
 
   it('has no axe violations while open', async () => {

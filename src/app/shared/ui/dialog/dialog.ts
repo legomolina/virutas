@@ -52,6 +52,9 @@ export class Dialog {
 
   readonly heading = input.required<string>();
 
+  /** Set for a dialog that needs an answer (a destructive confirmation): it gets `role="alertdialog"`. */
+  readonly alert = input(false);
+
   /** Whether the dialog is open. */
   readonly open = model(false);
 
