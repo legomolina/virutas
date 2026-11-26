@@ -2,7 +2,7 @@
 
 The steps for taking one issue to a PR. Two entry points follow them:
 
-- **`@claude` on GitHub**: `.github/workflows/claude.yml` points here. It runs on a runner with no browser.
+- **`@claude` on GitHub**: `.github/workflows/claude.yml` points here. It runs on a runner with no browser. It starts on an `@claude` comment, or by itself when the issue becomes ready (`.github/workflows/claude-ready.yml`, see `docs/agents/triage-labels.md`); then nobody is watching, so its request says to report on the issue.
 - **`/implement <n>` locally**: `.claude/skills/implement/`, in a worktree of its own (it creates one with the `/create-worktree` steps when run from the main checkout). It owns port 4200 + n.
 
 Where the two differ, the step says so. Anything the request adds or changes wins over these steps.

@@ -9,7 +9,7 @@ Issue: `$ARGUMENTS`. Without a number, ask for one. Run this in the main checkou
 
 `/implement <n>` run from the main checkout reuses steps 1–4 by number, so keep them self-contained and update it if they are renumbered.
 
-1. `gh issue view <n> --json title,state,labels`, then state the title and set the session title to `Setup #<n>` (see **Session title** below). Stop and say why when the issue is closed, or when `gh api repos/{owner}/{repo}/issues/<n> --jq .issue_dependencies_summary.blocked_by` is above 0 (an open issue blocks it).
+1. `gh issue view <n> --json title,state,labels`, then state the title and set the session title to `Setup #<n>` (see **Session title** below). Stop and say why when the issue is closed, when it has `in-progress` (an agent on GitHub is implementing it), or when `gh api repos/{owner}/{repo}/issues/<n> --jq .issue_dependencies_summary.blocked_by` is above 0 (an open issue blocks it).
 2. Choose the branch: `feat/`, `fix/` or `chore/`, plus a short kebab-case name taken from the issue.
 3. Run `.claude/skills/create-worktree/setup-worktree.sh <n> <branch>`. It prints the worktree path, branch and port.
 4. Claim the issue: `gh issue edit <n> --add-assignee @me`.
