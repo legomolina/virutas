@@ -93,6 +93,10 @@ jobs:
           # A dispatch from claude-ready.yml runs as github-actions[bot],
           # which the action refuses unless it is listed here.
           allowed_bots: 'github-actions'
+          # Claude's closing report on the run's Summary page, for dispatched
+          # runs only: they start only on issues the owner marked
+          # ready-for-agent, so the report comes from input the owner chose.
+          display_report: ${{ github.event_name == 'workflow_dispatch' }}
           # A dispatched run has no comment to answer, so it gets the request
           # here, and reports on the issue because nobody is watching it.
           # A block scalar, not a plain one: there, the ' #' of 'issue #{0}'
@@ -126,6 +130,25 @@ jobs:
             "Bash(gh pr diff *)" "Bash(gh pr checks *)" "Bash(gh pr comment *)"
             "Bash(gh pr edit *)" "Bash(gh pr list *)"
             --disallowedTools "Bash(gh pr merge *)"
+
+  # A dispatched run says on its issue that it started, with the model and a
+  # link to follow it, since nobody asked for it in a comment.
+  announce:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE: ${{ inputs.issue }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - run: |
+          model=$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels \
+            --jq '[.labels[].name | select(startswith("model:")) | ltrimstr("model:")] | first // "the default model"')
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" \
+            --body "Claude started implementing this issue with $model. Follow it here: $RUN_URL"
 
   # A dispatched run that fails says so on its issue and frees it, so the owner
   # sees it and can start it again (remove and re-add ready-for-agent).
