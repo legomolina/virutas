@@ -1,0 +1,104 @@
+:host {
+  display: contents;
+}
+
+/* Centred on the page (the reset takes the browser's `margin: auto` away), at most 480px wide. */
+dialog {
+  container-type: inline-size;
+
+  inline-size: calc(100% - 2 * var(--space-4));
+  max-inline-size: 480px;
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+
+  color: var(--ink);
+
+  background-color: var(--surface-raised);
+}
+
+dialog::backdrop {
+  background-color: var(--scrim);
+}
+
+header {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  justify-content: space-between;
+
+  padding-block: var(--space-6) var(--space-3);
+  padding-inline: var(--space-6) var(--space-4);
+}
+
+h2 {
+  padding-block-start: var(--space-1);
+  font: var(--text-title);
+  color: var(--ink);
+}
+
+/* The close button: a 36px square with the X icon. */
+button {
+  cursor: pointer;
+
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+
+  inline-size: 36px;
+  block-size: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+
+  color: var(--ink-muted);
+
+  background-color: transparent;
+}
+
+button:hover {
+  color: var(--ink);
+  background-color: var(--surface-sunken);
+}
+
+div {
+  padding-inline: var(--space-6);
+  font: var(--text-body);
+}
+
+footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: flex-end;
+
+  padding-block: var(--space-6);
+  padding-inline: var(--space-6);
+}
+
+footer:empty {
+  padding-block: var(--space-3);
+}
+
+/*
+ * A dialog 400px wide or less stacks its actions full width, in DOM order. The query
+ * measures inside the dialog's 1px border, so 400px wide is 398px here.
+ */
+@container (inline-size <= 398px) {
+  header {
+    padding-block-start: var(--space-4);
+    padding-inline: var(--space-4) var(--space-2);
+  }
+
+  div {
+    padding-inline: var(--space-4);
+  }
+
+  footer {
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--space-4);
+  }
+}
