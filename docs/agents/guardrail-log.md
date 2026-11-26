@@ -7,6 +7,10 @@ Add an entry whenever you add, change or remove a guardrail, or when one catches
 Add new entries at the top, in the same shape: a date, then **What happened**, **Root cause** and **Guardrail**. Keep it a list, not a table: Prettier re-aligns a whole table whenever a row widens it, so parallel branches conflict on every line.
 
 - **2026-11-26**
+  - **What happened:** No incident: the Guardrail paths check trusted any PR the owner opened, but on GitHub `@claude` pushes a branch and the owner opens its PR (`docs/agents/implement-issue.md`), so the agent's guardrail changes passed as the owner's.
+  - **Root cause:** The check looked at who opened the PR, not at who wrote its branch.
+  - **Guardrail:** `guardrails.yml` reads the PR branch's activity from the repository activity API (a push records the real pusher; commit authors can be forged), waiting until its newest push is the head commit. `check-guardrail-paths.mjs` passes guardrail changes only when the owner opened the PR and nobody else pushed to its branch since it was created, or when the owner added the `guardrails-approved` label after the last push by anyone else. The approval is compared by time, so the workflow no longer removes the label and needs only read permissions. A branch in a fork has no activity, so a label cannot approve its guardrail changes; the owner pushes them to a branch of this repository instead.
+- **2026-11-26**
   - **What happened:** No incident: a review of the `@claude` setup found two gaps. `claude.yml` allowed `Bash(gh pr *)`, which includes `gh pr merge`, and the `main` ruleset needs no approval, so the agent could merge its own PR once CI was green. And nothing stopped a PR from the agent or an outside contributor from changing the workflows, hooks, checks or agent instructions that hold these limits.
   - **Root cause:** The limits were enforced only by who can trigger the agent, not by what its PRs may change.
   - **Guardrail:**
