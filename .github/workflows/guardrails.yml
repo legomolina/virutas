@@ -1,15 +1,15 @@
-# Fails a PR that someone other than the owner opened (an outside contributor
-# or the @claude agent) when it changes a guardrail: workflows, agent
-# configuration and instructions, checks, and lint, test, build and dependency
-# config (the list is in scripts/check-guardrail-paths.mjs). The owner
-# approves such a change with the "guardrails-approved" label: it counts only
-# when the owner added it, and a new push takes it away again. The ruleset on
-# main requires this check.
+# Fails a PR that changes a guardrail (workflows, agent configuration and
+# instructions, checks, and lint, test, build and dependency config; the list
+# is in scripts/check-guardrail-paths.mjs) unless the owner opened it and
+# nobody else pushed to its branch, or the owner added the
+# "guardrails-approved" label after the last push by anyone else. Pushes, not
+# commit authors, because commit authors can be forged; the @claude agent
+# pushes a branch that the owner then opens a PR from. The ruleset on main
+# requires this check.
 #
 # pull_request_target, not pull_request: it runs this workflow and the script
 # as they are on main, so a PR cannot edit them to pass. It is safe because
-# the PR's code is never checked out or run: the changed paths come from the
-# API.
+# the PR's code is never checked out or run: everything comes from the API.
 name: Guardrails
 
 on:
@@ -22,16 +22,12 @@ concurrency:
 
 permissions:
   contents: read
-  # To take the approval label away when new commits arrive.
-  pull-requests: write
-  issues: write
+  pull-requests: read
+  issues: read
 
 env:
   GH_TOKEN: ${{ github.token }}
   PR_NUMBER: ${{ github.event.pull_request.number }}
-  AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
-  OWNER: ${{ github.repository_owner }}
-  LABEL: guardrails-approved
 
 jobs:
   guardrail-paths:
@@ -47,35 +43,62 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      # An approval covers the commits the owner saw, not the ones pushed
-      # after it.
-      - name: Withdraw the approval on new commits
-        if: >-
-          github.event.action == 'synchronize' &&
-          github.event.pull_request.author_association != 'OWNER' &&
-          contains(github.event.pull_request.labels.*.name, 'guardrails-approved')
-        run: gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label "$LABEL"
-
-      # Whoever added the label now on the PR (the latest time it was added),
-      # read from the API: the event payload says only that it is there. An
-      # explicit bash shell runs with pipefail, so a failed API call fails
-      # the check.
-      - name: Find who approved
+      # When and by whom the label now on the PR was last added, from the
+      # API: the event payload says only that it is there. An explicit bash
+      # shell runs with pipefail, so a failed API call fails the check.
+      - name: Find the approval
         id: approval
         shell: bash
+        env:
+          LABEL: guardrails-approved
         run: |
-          approved_by=''
-          if gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq '.labels[].name' | grep -qx "$LABEL"; then
-            approved_by=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/events" \
-              --jq ".[] | select(.event == \"labeled\" and .label.name == \"$LABEL\") | .actor.login" | tail -n 1)
+          approval=''
+          labels=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq '.labels[].name')
+          if grep -qxF "$LABEL" <<< "$labels"; then
+            approval=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/events" \
+              --jq ".[] | select(.event == \"labeled\" and .label.name == \"$LABEL\") | {actor: .actor.login, timestamp: .created_at} | @json" \
+              | tail -n 1)
           fi
-          echo "by=$approved_by" >> "$GITHUB_OUTPUT"
+          echo "json=$approval" >> "$GITHUB_OUTPUT"
+
+      # The branch's activity, newest first, from the repository activity
+      # API: a push records the real pusher. The API can lag behind the push
+      # that triggered this run, so it waits until the newest entry is the
+      # head commit; the script treats anything else as unknown. A branch in
+      # a fork has no activity here. The branch name comes from the PR, so it
+      # goes through env and is URL-encoded.
+      - name: Find who pushed
+        id: activity
+        shell: bash
+        env:
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          activity=''
+          if [ "$HEAD_REPO" = "$GITHUB_REPOSITORY" ]; then
+            ref=$(jq -rn --arg ref "refs/heads/$HEAD_REF" '$ref | @uri')
+            max_attempts=6
+            for _ in $(seq "$max_attempts"); do
+              activity=$(gh api --paginate "repos/$GITHUB_REPOSITORY/activity?ref=$ref&per_page=100" \
+                --jq '.[] | {type: .activity_type, after, actor: .actor.login, timestamp} | @json' \
+                | jq -cs '.')
+              newest=$(jq -r 'first(.[] | select(.type != "branch_deletion") | .after) // ""' <<< "$activity")
+              [ "$newest" = "$HEAD_SHA" ] && break
+              sleep 10
+            done
+          fi
+          echo "json=$activity" >> "$GITHUB_OUTPUT"
 
       # Renames list the old path too, so moving a guardrail away counts.
       - name: Check the changed paths
-        env:
-          APPROVED_BY: ${{ steps.approval.outputs.by }}
         shell: bash
+        env:
+          AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          OWNER: ${{ github.repository_owner }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          ACTIVITY: ${{ steps.activity.outputs.json }}
+          APPROVAL: ${{ steps.approval.outputs.json }}
         run: >-
           gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files"
           --jq '.[] | .filename, (.previous_filename // empty)'
