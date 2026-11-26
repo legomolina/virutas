@@ -15,7 +15,7 @@ Issue: `$ARGUMENTS`. Without a number, ask for one. Run this in the main checkou
 4. Claim the issue: `gh issue edit <n> --add-assignee @me`.
 5. Tell the user, and stop there:
    - Open a Claude Code session in the worktree path and run `/implement <n>`.
-   - Recommend a model: Sonnet for a mechanical ticket (a pattern to follow, specs to fill in), and Opus for diagnosis, new UI or design decisions.
+   - Recommend the model from the issue's `model:sonnet` or `model:opus` label (step 1 read its labels). Without one, recommend a model by the table in `docs/agents/triage-labels.md` and ask the user to add the label.
    - For pure domain logic with no UI, `@claude implement this issue` on GitHub is an alternative that needs no worktree.
 
 ## Session title

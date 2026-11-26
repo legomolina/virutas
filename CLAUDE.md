@@ -192,6 +192,8 @@ Issues are tracked in GitHub Issues (legomolina/virutas) via the `gh` CLI. See `
 
 Default canonical labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
 
+Every issue that gets `ready-for-agent` also gets exactly one model label, `model:sonnet` or `model:opus`, chosen by the table in `docs/agents/triage-labels.md`. When proposing tickets (e.g. in `to-tickets`), show each one's model so the owner can change it before publishing.
+
 ### Domain docs
 
 Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.

@@ -20,6 +20,8 @@ Other sessions run in parallel worktrees, so this one owns the port **4200 + iss
 
 Set the session title to `#<n> <issue title>` when the IDE offers a session-title tool (the JetBrains Air plugin's `air_set_session_title`, a deferred tool), so parallel sessions can be told apart. It errors outside an Air session; then carry on without a title.
 
+Check the model: read the issue's labels (`gh issue view <n> --json labels`). When it has `model:sonnet` or `model:opus` and this session runs a different model, say so at the start and suggest switching with `/model`, then carry on. Without a model label, apply the table in `docs/agents/triage-labels.md` to the issue, say which model it points to, and ask the user to add the label.
+
 Before starting, confirm the worktree is on the issue's branch, not `main`. When it is behind `origin/main`: rebase it while it has never been pushed (`git ls-remote --exit-code --heads origin <branch>` fails), otherwise follow `/update-branch`.
 
 Then follow `docs/agents/implement-issue.md`, taking its **Locally** branch at each step. Its completion criterion is this skill's.
