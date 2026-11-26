@@ -7,6 +7,10 @@ Add an entry whenever you add, change or remove a guardrail, or when one catches
 Add new entries at the top, in the same shape: a date, then **What happened**, **Root cause** and **Guardrail**. Keep it a list, not a table: Prettier re-aligns a whole table whenever a row widens it, so parallel branches conflict on every line.
 
 - **2026-11-26**
+  - **What happened:** No incident: the model to implement an issue with was only advised by `/create-worktree` at the moment of starting, and `@claude` on GitHub always ran the action's default.
+  - **Root cause:** The choice was not recorded on the issue, so neither path could act on it.
+  - **Guardrail:** `model:sonnet` / `model:opus` labels, set with `ready-for-agent` (rule in `CLAUDE.md`, table in `docs/agents/triage-labels.md`). `claude.yml` passes `--model` from the label (Sonnet when there is none); `/create-worktree` and `/implement` recommend it and warn when the session runs another model or the label is missing. Only the owner can set labels, so an issue's author cannot pick a costlier model.
+- **2026-11-26**
   - **What happened:** No incident: a review of the `@claude` setup found two gaps. `claude.yml` allowed `Bash(gh pr *)`, which includes `gh pr merge`, and the `main` ruleset needs no approval, so the agent could merge its own PR once CI was green. And nothing stopped a PR from the agent or an outside contributor from changing the workflows, hooks, checks or agent instructions that hold these limits.
   - **Root cause:** The limits were enforced only by who can trigger the agent, not by what its PRs may change.
   - **Guardrail:**
