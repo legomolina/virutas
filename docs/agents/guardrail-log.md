@@ -7,6 +7,10 @@ Add an entry whenever you add, change or remove a guardrail, or when one catches
 Add new entries at the top, in the same shape: a date, then **What happened**, **Root cause** and **Guardrail**. Keep it a list, not a table: Prettier re-aligns a whole table whenever a row widens it, so parallel branches conflict on every line.
 
 - **2026-11-26**
+  - **What happened:** On GitHub, the agent skipped the `a11y-auditor` (keyboard, focus, announcements: what axe cannot see), so a UI issue such as #150 (`wt-dialog`) reached a PR with no such audit anywhere.
+  - **Root cause:** `claude.yml`'s runner had no dev server, no browser and no Playwright MCP server, so `implement-issue.md` ran the auditor locally only.
+  - **Guardrail:** `claude.yml` loads the Playwright MCP server from `.mcp.json` (same pinned version), pointed at the runner's Google Chrome because its Playwright version wants a different Chromium, and allows `mcp__playwright` and `pnpm start --port 4200`. `implement-issue.md` runs the auditor on GitHub too: only when the UI changed, the agent starts the dev server in the background and passes its URL, so runs without UI changes pay nothing for it. e2e stays with CI.
+- **2026-11-26**
   - **What happened:** On GitHub, the agent ended its run as soon as it pushed, so a failing CI job (e2e above all, which it cannot run without a browser) waited for the owner to notice and ask for a fix.
   - **Root cause:** `implement-issue.md` watched CI only locally.
   - **Guardrail:** Step 6 (watch CI, fix red jobs, update a branch behind `main`, treat retried e2e failures as failures) now applies on GitHub too, rerunning `gh pr checks --watch` when the Bash tool's 10-minute limit cuts it. A red Guardrail paths check is left to the owner. The work is done only with every check green.
