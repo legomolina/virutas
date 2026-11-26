@@ -64,14 +64,19 @@ jobs:
           # file, so a comment can be as short as "implement this issue".
           # Allowed tools: the commands the project allows locally
           # (.claude/settings.json), plus mutation testing, and git and gh to
-          # branch, commit and push. Merging is denied: only the owner merges,
-          # and the Guardrails check (guardrails.yml) fails any change of the
-          # agent's to a guardrail path until the owner approves it.
+          # branch, commit and push. gh pr is limited to the subcommands the
+          # agent needs and merging is denied: only the owner merges. The
+          # Guardrails check (guardrails.yml) fails any change of the agent's
+          # to a guardrail path until the owner approves it, and ignores an
+          # approval label the agent adds itself.
           claude_args: >-
             --append-system-prompt "When asked to implement an issue, follow docs/agents/implement-issue.md, taking its On GitHub branch at each step. Never merge a pull request: the owner merges. Never change a guardrail path listed in scripts/check-guardrail-paths.mjs unless the owner's request asks for that change."
             --allowedTools
             "Bash(pnpm lint)" "Bash(pnpm lint:fix)" "Bash(pnpm typecheck)"
             "Bash(pnpm test:ci)" "Bash(pnpm test:ci *)" "Bash(pnpm build)"
             "Bash(pnpm i18n:check)" "Bash(pnpm exec ng test *)" "Bash(pnpm mutation)"
-            "Bash(git *)" "Bash(gh issue *)" "Bash(gh pr *)" "Bash(gh run *)"
-            --disallowedTools "Bash(gh pr merge *)" "Bash(gh pr merge)"
+            "Bash(git *)" "Bash(gh issue *)" "Bash(gh run *)"
+            "Bash(gh pr create *)" "Bash(gh pr view)" "Bash(gh pr view *)"
+            "Bash(gh pr diff *)" "Bash(gh pr checks *)" "Bash(gh pr comment *)"
+            "Bash(gh pr edit *)" "Bash(gh pr list *)"
+            --disallowedTools "Bash(gh pr merge *)"

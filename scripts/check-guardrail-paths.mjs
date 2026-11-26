@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 // Fails when a pull request that the owner did not open changes a guardrail:
 // the workflows, the agent configuration and instructions, the checks and the
-// lint, test and build configuration that keep agents (and humans) on track.
-// The owner approves such a change by adding the `guardrails-approved` label.
+// lint, test, build and dependency configuration that keep agents (and humans)
+// on track. The owner approves such a change by adding the
+// `guardrails-approved` label; the label counts only when the owner added it.
 //
-// Reads the changed paths from stdin, one per line (renames list both the old
-// and the new path). Takes the PR author's association from the
-// AUTHOR_ASSOCIATION environment variable, and APPROVED=true when the label is
-// on the PR. Runs in `.github/workflows/guardrails.yml`.
+// Reads the changed paths from stdin, one per line (the workflow lists both
+// the old and the new path of a rename). Environment:
+//   AUTHOR_ASSOCIATION  the PR author's association with the repo (`OWNER`…)
+//   OWNER               the repository owner's login
+//   APPROVED_BY         the login that added the `guardrails-approved` label
+//                       now on the PR, or empty when it is not there
+// Runs in `.github/workflows/guardrails.yml`.
 
 import { readFileSync } from 'node:fs';
 
@@ -22,7 +26,10 @@ const GUARDRAIL_PATHS = [
   'CLAUDE.md',
   '.mcp.json',
   'package.json',
+  'pnpm-lock.yaml',
   'pnpm-workspace.yaml',
+  '.npmrc',
+  '.nvmrc',
   'angular.json',
   'eslint.config.mjs',
   'stylelint.config.mjs',
@@ -37,6 +44,11 @@ const GUARDRAIL_PATHS = [
   'vitest.calc.config.mts',
 ];
 
+function fail(message) {
+  console.error(`check-guardrail-paths: ${message}`);
+  process.exit(1);
+}
+
 const isGuardrail = (path) =>
   GUARDRAIL_PATHS.some((guarded) =>
     guarded.endsWith('/') ? path.startsWith(guarded) : path === guarded,
@@ -48,20 +60,14 @@ const changed = readFileSync(0, 'utf8')
   .filter(Boolean);
 
 const touched = [...new Set(changed.filter(isGuardrail))].sort();
+const owner = process.env.OWNER ?? '';
 const byOwner = process.env.AUTHOR_ASSOCIATION === 'OWNER';
-const approved = process.env.APPROVED === 'true';
+const approvedByOwner = owner !== '' && process.env.APPROVED_BY === owner;
 
-if (touched.length > 0 && !byOwner && !approved) {
-  console.error(
-    `check-guardrail-paths: this pull request changes guardrails, which only the owner may change:\n${touched
+if (touched.length > 0 && !byOwner && !approvedByOwner) {
+  fail(
+    `this pull request changes guardrails, which only the owner may change:\n${touched
       .map((path) => `  ${path}`)
       .join('\n')}\nThe owner can approve it by adding the "guardrails-approved" label.`,
-  );
-  process.exit(1);
-}
-
-if (touched.length > 0) {
-  console.log(
-    `check-guardrail-paths: guardrail changes allowed (${byOwner ? 'opened by the owner' : 'approved by label'}).`,
   );
 }
