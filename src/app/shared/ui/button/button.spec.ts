@@ -13,7 +13,7 @@ import { Button } from './button';
   `,
 })
 class Host {
-  readonly variant = signal<'primary' | 'secondary'>('primary');
+  readonly variant = signal<'primary' | 'secondary' | 'danger'>('primary');
   readonly size = signal<'default' | 'small'>('small');
 }
 
@@ -56,6 +56,13 @@ describe('Button', () => {
     host.variant.set('secondary');
     await settle();
     expect(button(root, 'main').getAttribute('variant')).toBe('secondary');
+  });
+
+  it('accepts the danger variant, reflected on the host', async () => {
+    const { host, root, settle } = await render();
+    host.variant.set('danger');
+    await settle();
+    expect(button(root, 'main').getAttribute('variant')).toBe('danger');
   });
 
   it('is default size unless told otherwise', async () => {
