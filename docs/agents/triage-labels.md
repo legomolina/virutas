@@ -16,7 +16,7 @@ Edit the "Label in our tracker" column to match whatever vocabulary you actually
 
 ## Starting the agent
 
-Adding `ready-for-agent` starts `@claude` on the issue on GitHub (`.github/workflows/claude-ready.yml`), with no comment needed, as long as the owner added the label, the issue is open and unassigned, and no open issue blocks it. A blocked issue starts when its last blocker closes. Each started issue gets `in-progress`, so it never starts twice, and a comment with the model and a link to the run; the run's Summary page shows Claude's closing report:
+Adding `ready-for-agent` starts `@claude` on the issue on GitHub (`.github/workflows/claude-ready.yml`), with no comment needed, as long as the owner added the label, the issue is open and unassigned, and no open issue blocks it. A blocked issue starts when its last blocker closes. Each started issue gets `in-progress`, so it never starts twice, and a comment with the model and a link to the run. The run's Summary page shows Claude's closing report.
 
 | Label         | Meaning                                                                                                         |
 | ------------- | --------------------------------------------------------------------------------------------------------------- |

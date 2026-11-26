@@ -7,6 +7,10 @@ Add an entry whenever you add, change or remove a guardrail, or when one catches
 Add new entries at the top, in the same shape: a date, then **What happened**, **Root cause** and **Guardrail**. Keep it a list, not a table: Prettier re-aligns a whole table whenever a row widens it, so parallel branches conflict on every line.
 
 - **2026-11-26**
+  - **What happened:** The first run started by `ready-for-agent` (#149) read the issue and planned the work, but every file write was refused ("you have not granted it yet"). With nobody to approve it, the agent stopped, explained the cause on the issue and removed `in-progress`, without trying to write through Bash or editing the workflow.
+  - **Root cause:** `claude.yml`'s `--allowedTools` listed only Bash commands. A comment-started run (tag mode) gets the file-editing tools from the action, but a dispatched run (agent mode) gets only the list.
+  - **Guardrail:** `Edit`, `Write` and `MultiEdit` are in `--allowedTools`, with a comment saying why.
+- **2026-11-26**
   - **What happened:** A run started by `ready-for-agent` was visible only in Actions: nothing on the issue said it had started, and following it meant reading the raw log.
   - **Root cause:** The action's progress comment (`track_progress`) does not work on `workflow_dispatch`, and dispatched runs had no comment of their own until the end.
   - **Guardrail:** An `announce` job in `claude.yml` comments on the issue when a dispatched run starts, with the model and a link to the run; `display_report` puts Claude's closing report on the run's Summary page, for dispatched runs only.
