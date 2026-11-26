@@ -15,8 +15,13 @@ concurrency:
 
 jobs:
   claude-review:
-    # Only the owner's PRs: on a public repo, anyone can open one.
-    if: github.event.pull_request.draft == false && github.event.pull_request.author_association == 'OWNER'
+    # Only the owner's PRs and those the @claude agent opens (it works only on
+    # what the owner asked for): on a public repo, anyone can open one. A login
+    # ending in [bot] belongs to a GitHub App, so no person can take it.
+    if: >-
+      github.event.pull_request.draft == false &&
+      (github.event.pull_request.author_association == 'OWNER' ||
+       github.event.pull_request.user.login == 'claude[bot]')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -38,6 +43,9 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # A PR the agent opens starts this run as claude[bot], which the
+          # action refuses unless it is listed here.
+          allowed_bots: 'claude'
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
           prompt: |

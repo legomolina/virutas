@@ -102,7 +102,7 @@ jobs:
           # A block scalar, not a plain one: there, the ' #' of 'issue #{0}'
           # would start a YAML comment and cut the expression short.
           prompt: >-
-            ${{ github.event_name == 'workflow_dispatch' && format('Implement issue #{0} of this repository. Nobody is watching this run, so when you finish, post the summary that docs/agents/implement-issue.md ends with, including the Create PR link, as a comment on the issue (gh issue comment {0}). If you stop early, because the issue is blocked or leaves a decision only the owner can make, say why in that comment and remove its in-progress label (gh issue edit {0} --remove-label in-progress).', inputs.issue) || '' }}
+            ${{ github.event_name == 'workflow_dispatch' && format('Implement issue #{0} of this repository. Nobody is watching this run, so when you finish, post the summary that docs/agents/implement-issue.md ends with, including the PR link, as a comment on the issue (gh issue comment {0}). If you stop early, because the issue is blocked or leaves a decision only the owner can make, say why in that comment and remove its in-progress label (gh issue edit {0} --remove-label in-progress).', inputs.issue) || '' }}
           # The plugin .claude/settings.json enables locally, so CLAUDE.md's
           # skills (tdd, code-review, diagnosing-bugs, pr…) load in CI too.
           plugin_marketplaces: 'https://github.com/anthropics/claude-plugins-official.git'

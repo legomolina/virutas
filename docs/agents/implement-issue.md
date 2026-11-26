@@ -16,9 +16,7 @@ Where the two differ, the step says so. Anything the request adds or changes win
    - the `test-reviewer` subagent, when you added or changed tests;
    - **locally only**: the `a11y-auditor` subagent, when the UI changed, with the dev server URL;
    - the `mattpocock-skills:code-review` skill, always.
-5. Commit with Conventional Commits. Run `git push` as a command of its own. Then:
-   - **Locally**: open the PR with `gh pr create`, as its own command, and a body written with the `mattpocock-skills:pr` skill that starts with `Closes #<n>`.
-   - **On GitHub**: do not open the PR yourself. Give the "Create PR" link, with a title in Conventional Commits form and a body that starts with `Closes #<n>`. The owner opens the PR, so the owner-only automatic review runs on it.
+5. Commit with Conventional Commits. Run `git push` as a command of its own. Then open the PR with `gh pr create`, as its own command, with a title in Conventional Commits form and a body written with the `mattpocock-skills:pr` skill that starts with `Closes #<n>`. On GitHub, the automatic review (`claude-code-review.yml`) runs on it, and the owner reviews and merges it.
 6. **Locally**, watch CI with `gh pr checks <pr> --watch`.
    - A red job: read `gh run view --log-failed`, fix the cause and push again.
    - The PR conflicts with `main` or is behind it: follow `/update-branch`.
@@ -27,7 +25,7 @@ Where the two differ, the step says so. Anything the request adds or changes win
    - what changed;
    - every acceptance criterion, ticked or explained;
    - the checks you ran and their results;
-   - the PR link, or the "Create PR" link on GitHub;
+   - the PR link;
    - anything you decided that the issue left open.
 
 Done when the work is pushed and every criterion and check is accounted for. Locally, the PR must also be open with every check green and no flaky test introduced by this branch.
