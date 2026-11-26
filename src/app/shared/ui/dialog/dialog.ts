@@ -21,7 +21,8 @@ let nextId = 0;
  * backdrop does not close it.
  *
  * On open, focus moves to the element with `autofocus` inside it, or else to
- * its close button; on close, it goes back to the element that had it.
+ * its close button; on close, it goes back to the element that had it, unless
+ * the page has already moved it elsewhere.
  * Put the body inside it, and mark each action button `dialog-action`: they
  * share a row at the end, in DOM order, and stack full width when the dialog
  * is narrow.
@@ -73,12 +74,21 @@ export class Dialog {
     this.dialog().nativeElement.close();
   }
 
-  /** Whatever closed the native dialog (Escape, the close button, `open` set to false). */
-  protected closed(): void {
+  /**
+   * Handles the native `close` event, whatever closed the dialog (Escape, the close
+   * button, `open` set to false): syncs `open` and gives focus back to the opener,
+   * unless the page has already moved focus somewhere else.
+   */
+  protected onDialogClosed(): void {
     this.open.set(false);
     const { opener } = this;
     this.opener = null;
-    if (opener?.isConnected) {
+    const active = this.document.activeElement;
+    const focusIsLost =
+      active === null ||
+      active === this.document.body ||
+      this.dialog().nativeElement.contains(active);
+    if (opener?.isConnected && focusIsLost) {
       opener.focus();
     }
   }

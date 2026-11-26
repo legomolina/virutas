@@ -1,4 +1,9 @@
-<dialog #dialog closedby="closerequest" [attr.aria-labelledby]="headingId" (close)="closed()">
+<dialog
+  #dialog
+  closedby="closerequest"
+  [attr.aria-labelledby]="headingId"
+  (close)="onDialogClosed()"
+>
   <header>
     <h2 [id]="headingId">{{ heading() }}</h2>
     <button

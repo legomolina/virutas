@@ -16,6 +16,7 @@ import { Dialog } from './dialog';
       <button dialog-action type="button" (click)="open.set(false)">Cancel</button>
       <button dialog-action type="button">Reset</button>
     </wt-dialog>
+    <button type="button">Undo</button>
   `,
 })
 class Host {
@@ -55,6 +56,17 @@ function fakeDialog(element: HTMLDialogElement): void {
         element.removeAttribute('open');
         element.dispatchEvent(new Event('close'));
       }
+    },
+  });
+}
+
+/** Makes `showModal()` move focus to `target`, as the browser does for an `autofocus` element. */
+function focusOnShow(element: HTMLDialogElement, target: HTMLElement): void {
+  const showModal = element.showModal.bind(element);
+  Object.assign(element, {
+    showModal: (): void => {
+      showModal();
+      target.focus();
     },
   });
 }
@@ -165,21 +177,21 @@ describe('Dialog', () => {
     expect(button(root, 'Cerrar').type).toBe('button');
   });
 
-  // jsdom has no Escape handling for dialogs: the browser answers Escape on a modal
-  // dialog by firing `cancel` and then closing it, which this does by hand.
-  it('sets open back to false when Escape closes it', async () => {
+  // jsdom has no Escape handling for dialogs. The browser closes a modal dialog on
+  // Escape and fires `close`, as it does for any other way of closing it.
+  it('sets open back to false whenever the native dialog closes, as on Escape', async () => {
     const { fixture, root } = await render();
     await openFromTrigger(fixture, root);
 
-    dialog(root).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    dialog(root).dispatchEvent(new Event('cancel', { cancelable: true }));
     dialog(root).close();
     await fixture.whenStable();
 
     expect(fixture.componentInstance.open()).toBe(false);
   });
 
-  it('lets Escape close it but not a click on the backdrop', async () => {
+  // jsdom has no backdrop: this checks the attribute that tells the browser to close the
+  // dialog on a close request (Escape) and never on a click outside it.
+  it('declares that only a close request closes it, not a click on the backdrop', async () => {
     const { root } = await render();
 
     expect(dialog(root).getAttribute('closedby')).toBe('closerequest');
@@ -196,13 +208,7 @@ describe('Dialog', () => {
   it('keeps focus where the browser put it when that is inside the dialog', async () => {
     const { fixture, root } = await render();
     const cancel = button(root, 'Cancel');
-    const showModal = dialog(root).showModal.bind(dialog(root));
-    Object.assign(dialog(root), {
-      showModal: (): void => {
-        showModal();
-        cancel.focus();
-      },
-    });
+    focusOnShow(dialog(root), cancel);
 
     await openFromTrigger(fixture, root);
 
@@ -211,12 +217,24 @@ describe('Dialog', () => {
 
   it('gives focus back to the element that had it when it closes', async () => {
     const { fixture, root } = await render();
+    focusOnShow(dialog(root), button(root, 'Cancel'));
     await openFromTrigger(fixture, root);
 
     button(root, 'Close').click();
     await fixture.whenStable();
 
     expect(document.activeElement).toBe(button(root, 'Reset all settings'));
+  });
+
+  it('leaves focus where the page moved it once the dialog closed', async () => {
+    const { fixture, root } = await render();
+    await openFromTrigger(fixture, root);
+
+    button(root, 'Undo').focus();
+    dialog(root).close();
+    await fixture.whenStable();
+
+    expect(document.activeElement).toBe(button(root, 'Undo'));
   });
 
   it('renders its projected body and actions in place', async () => {

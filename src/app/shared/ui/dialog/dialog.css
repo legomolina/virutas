@@ -63,11 +63,6 @@ button:hover {
   background-color: var(--surface-sunken);
 }
 
-button:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus);
-  outline-offset: 2px;
-}
-
 div {
   padding-inline: var(--space-6);
   font: var(--text-body);
@@ -87,8 +82,11 @@ footer:empty {
   padding-block: var(--space-3);
 }
 
-/* A narrow dialog stacks its actions full width, in DOM order. */
-@container (inline-size <= 400px) {
+/*
+ * A dialog 400px wide or less stacks its actions full width, in DOM order. The query
+ * measures inside the dialog's 1px border, so 400px wide is 398px here.
+ */
+@container (inline-size <= 398px) {
   header {
     padding-block-start: var(--space-4);
     padding-inline: var(--space-4) var(--space-2);
