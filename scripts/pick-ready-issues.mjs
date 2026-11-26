@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Picks the issues an agent can start on now, out of the candidates
-// `.github/workflows/claude-ready.yml` gathers when an issue gets the
-// `ready-for-agent` label or when a closed issue may have unblocked others.
+// Picks the issues an agent can start on now, out of the open
+// `ready-for-agent` issues `.github/workflows/claude-ready.yml` gathers when
+// an issue gets that label or when a closed issue may have unblocked others.
 // An issue can start when it is open, has `ready-for-agent` (added by the
 // owner, so nobody else can spend the owner's subscription), is not already
 // `in-progress`, nobody is assigned to it (`/create-worktree` assigns the
@@ -42,9 +42,10 @@ const canStart = (issue) =>
   issue.assigned === false &&
   issue.readyLabelledBy === owner;
 
-const picked = [...new Set(candidates.filter(canStart).map((issue) => issue.number))].sort(
-  (a, b) => a - b,
-);
+const picked = candidates
+  .filter(canStart)
+  .map((issue) => issue.number)
+  .sort((a, b) => a - b);
 
 for (const number of picked) {
   console.log(number);

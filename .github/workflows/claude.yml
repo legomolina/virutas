@@ -95,7 +95,7 @@ jobs:
           allowed_bots: 'github-actions'
           # A dispatched run has no comment to answer, so it gets the request
           # here, and reports on the issue because nobody is watching it.
-          prompt: ${{ github.event_name == 'workflow_dispatch' && format('Implement issue #{0} of this repository. Nobody is watching this run, so when you finish, post your step 7 summary, with the Create PR link, as a comment on the issue (gh issue comment {0}). If you stop early, because the issue is blocked or leaves a decision only the owner can make, say why in that comment and remove its in-progress label (gh issue edit {0} --remove-label in-progress).', inputs.issue) || '' }}
+          prompt: ${{ github.event_name == 'workflow_dispatch' && format('Implement issue #{0} of this repository. Nobody is watching this run, so when you finish, post the summary that docs/agents/implement-issue.md ends with, including the Create PR link, as a comment on the issue (gh issue comment {0}). If you stop early, because the issue is blocked or leaves a decision only the owner can make, say why in that comment and remove its in-progress label (gh issue edit {0} --remove-label in-progress).', inputs.issue) || '' }}
           # The plugin .claude/settings.json enables locally, so CLAUDE.md's
           # skills (tdd, code-review, diagnosing-bugs, pr…) load in CI too.
           plugin_marketplaces: 'https://github.com/anthropics/claude-plugins-official.git'
@@ -139,5 +139,5 @@ jobs:
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       - run: |
-          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "The agent could not finish this issue: $RUN_URL"
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "The agent could not finish this issue: $RUN_URL. To start it again, remove and re-add ready-for-agent."
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label in-progress

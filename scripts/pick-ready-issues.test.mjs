@@ -37,12 +37,8 @@ describe('pick-ready-issues', () => {
     assert.deepEqual(pick([ready(149)]).picked, [149]);
   });
 
-  it('picks every candidate that can start, in ascending order', () => {
-    assert.deepEqual(pick([ready(152), ready(150), ready(151)]).picked, [150, 151, 152]);
-  });
-
-  it('picks each issue once', () => {
-    assert.deepEqual(pick([ready(149), ready(149)]).picked, [149]);
+  it('picks every candidate that can start, in ascending numeric order', () => {
+    assert.deepEqual(pick([ready(100), ready(9), ready(10)]).picked, [9, 10, 100]);
   });
 
   it('picks nothing from no candidates', () => {
@@ -78,6 +74,17 @@ describe('pick-ready-issues', () => {
 
   it('skips everything when the owner is unknown', () => {
     assert.deepEqual(pick([ready(149, { readyLabelledBy: '' })], { owner: '' }).picked, []);
+    assert.deepEqual(pick([ready(149)], { owner: '' }).picked, []);
+  });
+
+  it('skips everything when OWNER is not set', () => {
+    const result = spawnSync(process.execPath, [SCRIPT], {
+      input: JSON.stringify([ready(149, { readyLabelledBy: '' })]),
+      encoding: 'utf8',
+      env: { PATH: process.env.PATH },
+    });
+
+    assert.equal(result.stdout, '');
   });
 
   it('picks the startable issues and skips the rest', () => {

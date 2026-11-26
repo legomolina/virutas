@@ -1,7 +1,9 @@
 # Starts @claude on every issue that can be implemented now, with no comment
 # needed: when the owner adds `ready-for-agent` to an issue, and when an issue
-# closes, for the issues it was blocking. scripts/pick-ready-issues.mjs picks
-# the ones that can start (open, `ready-for-agent` added by the owner, not
+# closes (it may have unblocked others). Each run looks at every open
+# `ready-for-agent` issue, not only the event's, so an event dropped by the
+# concurrency queue (it keeps one pending run) is caught by the next one.
+# scripts/pick-ready-issues.mjs picks the ones that can start (open, `ready-for-agent` added by the owner, not
 # `in-progress`, unassigned, not blocked); each gets `in-progress`, so it
 # never starts twice, and a run of claude.yml (workflow_dispatch) that
 # implements it.
@@ -15,7 +17,7 @@ on:
   issues:
     types: [labeled, closed]
 
-# One at a time, so two closings never both start the same issue.
+# One at a time, so two runs never both start the same issue.
 concurrency:
   group: claude-ready
   cancel-in-progress: false
@@ -38,7 +40,6 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       EVENT_ACTION: ${{ github.event.action }}
-      ISSUE_NUMBER: ${{ github.event.issue.number }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -47,19 +48,19 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      # The issue just labelled, or the issues the closed one was blocking,
-      # each with its state, labels, open blockers, assignees, and who last added
-      # ready-for-agent (from its events: the payload does not say). An
-      # explicit bash shell runs with pipefail, so a failed API call stops it.
+      # Every open ready-for-agent issue, each with its state, labels, open
+      # blockers, assignees, and who last added ready-for-agent (from its
+      # events: the payload does not say). After a closing, it first waits a
+      # little, so the closed issue no longer counts as a blocker. An explicit
+      # bash shell runs with pipefail, so a failed API call stops it.
       - name: Gather the candidates
         id: candidates
         shell: bash
         run: |
-          if [ "$EVENT_ACTION" = labeled ]; then
-            numbers=$ISSUE_NUMBER
-          else
-            numbers=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$ISSUE_NUMBER/dependencies/blocking" --jq '.[].number')
+          if [ "$EVENT_ACTION" = closed ]; then
+            sleep 10
           fi
+          numbers=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label ready-for-agent --limit 200 --json number --jq '.[].number')
           candidates='[]'
           for number in $numbers; do
             issue=$(gh api "repos/$GITHUB_REPOSITORY/issues/$number" \
@@ -70,6 +71,9 @@ jobs:
           done
           echo "json=$candidates" >> "$GITHUB_OUTPUT"
 
+      # in-progress first, so a later run never picks the issue again; if
+      # the dispatch then fails, it is taken off again and the run fails
+      # after trying the other issues.
       - name: Start the agent on each
         shell: bash
         env:
@@ -77,8 +81,15 @@ jobs:
           CANDIDATES: ${{ steps.candidates.outputs.json }}
         run: |
           picked=$(node scripts/pick-ready-issues.mjs <<< "$CANDIDATES")
+          failed=0
           for number in $picked; do
             gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --add-label in-progress
-            gh workflow run claude.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f issue="$number"
-            echo "Started @claude on #$number."
+            if gh workflow run claude.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f issue="$number"; then
+              echo "Started @claude on #$number."
+            else
+              gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --remove-label in-progress
+              echo "::error::Could not start @claude on #$number."
+              failed=1
+            fi
           done
+          exit "$failed"
