@@ -50,10 +50,10 @@ test('the Settings chosen are kept after a reload', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('lang', 'es');
   await expect(page.getByRole('radio', { name: 'Imperial' })).toBeChecked();
   await expect(page.getByLabel('Precisión imperial')).toHaveValue('32');
-  const optimizador = page.getByRole('region', { name: 'Optimizador de cortes' });
-  await expect(optimizador.getByLabel('Grosor de corte')).toHaveValue('3/32"');
-  await expect(optimizador.getByLabel('Saneado')).toHaveValue('1/4"');
-  await expect(optimizador.getByLabel('Longitud mínima de retal')).toHaveValue('10"');
+  const cutOptimizerInSpanish = page.getByRole('region', { name: 'Optimizador de cortes' });
+  await expect(cutOptimizerInSpanish.getByLabel('Grosor de corte')).toHaveValue('3/32"');
+  await expect(cutOptimizerInSpanish.getByLabel('Saneado')).toHaveValue('1/4"');
+  await expect(cutOptimizerInSpanish.getByLabel('Longitud mínima de retal')).toHaveValue('10"');
 });
 
 test('switching the language translates the page in place, keeping focus on the picker', async ({

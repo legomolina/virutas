@@ -3,6 +3,7 @@ import { IMPERIAL_PRECISIONS } from '../../shared/measurement/show-length.calc';
 import type { UnitSystem } from '../../shared/measurement/unit-system';
 import type { Lang } from '../i18n/langs';
 import { isLang } from '../i18n/langs';
+import type { CutOptimizerDefaults } from './cut-optimizer-defaults.calc';
 
 /** The version of the saved Settings format this app reads and writes. */
 const VERSION = 1;
@@ -12,13 +13,10 @@ const VERSION = 1;
  * follows its default: the browser for the Unit System and the language, the
  * Unit System for the Cut Optimizer defaults.
  */
-export interface ChosenSettings {
+export interface ChosenSettings extends Partial<CutOptimizerDefaults> {
   readonly unitSystem?: UnitSystem;
   readonly imperialPrecision?: ImperialPrecision;
   readonly language?: Lang;
-  readonly kerfMillimetres?: number;
-  readonly trimMillimetres?: number;
-  readonly minimumOffcutLengthMillimetres?: number;
 }
 
 /** The chosen Settings as they are saved: versioned, each Tool's defaults grouped under the Tool. */
@@ -27,11 +25,7 @@ export interface SettingsDocument {
   readonly unitSystem?: UnitSystem;
   readonly imperialPrecision?: ImperialPrecision;
   readonly language?: Lang;
-  readonly cutOptimizer?: {
-    readonly kerfMillimetres?: number;
-    readonly trimMillimetres?: number;
-    readonly minimumOffcutLengthMillimetres?: number;
-  };
+  readonly cutOptimizer?: Partial<CutOptimizerDefaults>;
 }
 
 export function isUnitSystem(value: unknown): value is UnitSystem {
