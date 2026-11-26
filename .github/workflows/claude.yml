@@ -181,9 +181,9 @@ jobs:
           # Allowed tools: editing files (a comment-started run gets it from
           # the action, a dispatched one only from this list, so without it a
           # dispatched run could not write a file), the Playwright browser
-          # tools and the Angular dev server for the a11y-auditor, the commands the project
-          # allows locally
-          # (.claude/settings.json), plus mutation testing, and git and gh to
+          # tools and the Angular dev server for the a11y-auditor, the
+          # package.json scripts (never pnpm exec: a single spec runs with
+          # pnpm test --watch=false --include <file>), and git and gh to
           # branch, commit and push. gh pr is limited to the subcommands the
           # agent needs and merging is denied: only the owner merges. The
           # Guardrails check (guardrails.yml) fails any change of the agent's
@@ -191,15 +191,18 @@ jobs:
           # approval label the agent adds itself.
           claude_args: >-
             ${{ steps.model.outputs.args }}
-            --append-system-prompt "When asked to implement an issue, follow docs/agents/implement-issue.md, taking its On GitHub branch at each step. Never merge a pull request: the owner merges. Never change a guardrail path listed in scripts/check-guardrail-paths.mjs unless the owner's request asks for that change. Ending your turn ends this run: never end it to wait for anything, and run subagents in the foreground. Run one command per Bash call, without pipes, cd or redirections, and read or change files with Read, Edit and Write."
+            --append-system-prompt "When asked to implement an issue, follow docs/agents/implement-issue.md, taking its On GitHub branch at each step. Never merge a pull request: the owner merges. Never change a guardrail path listed in scripts/check-guardrail-paths.mjs unless the owner's request asks for that change. Ending your turn ends this run: never end it to wait for anything, and run subagents in the foreground. Run one command per Bash call, without pipes, cd or redirections, and read or change files with Read, Edit and Write. Run the project's tools through its package.json scripts (pnpm lint, pnpm test --watch=false --include <spec file>…), never pnpm exec."
             --mcp-config ${{ runner.temp }}/mcp.json
             --allowedTools
             "Edit" "Write" "MultiEdit" "mcp__playwright"
             "mcp__angular-cli__devserver_start" "mcp__angular-cli__devserver_wait_for_build" "mcp__angular-cli__devserver_stop"
             "Bash(pnpm lint)" "Bash(pnpm lint:fix)" "Bash(pnpm typecheck)"
-            "Bash(pnpm test:ci)" "Bash(pnpm test:ci *)" "Bash(pnpm build)"
-            "Bash(pnpm i18n:check)" "Bash(pnpm exec ng test *)" "Bash(pnpm mutation)"
-            "Bash(pnpm exec vitest *)" "Bash(pnpm exec eslint *)" "Bash(pnpm exec prettier *)"
+            "Bash(pnpm test *)" "Bash(pnpm test:ci)" "Bash(pnpm test:tooling)"
+            "Bash(pnpm build)" "Bash(pnpm mutation)"
+            "Bash(pnpm i18n:check)" "Bash(pnpm specs:check)"
+            "Bash(pnpm tokens)" "Bash(pnpm tokens:check)" "Bash(pnpm sitemap)" "Bash(pnpm sitemap:check)"
+            "Bash(pnpm prettier)" "Bash(pnpm prettier:fix)" "Bash(pnpm eslint)" "Bash(pnpm eslint:fix)"
+            "Bash(pnpm stylelint)" "Bash(pnpm stylelint:fix)"
             "Bash(git *)" "Bash(gh issue *)" "Bash(gh run *)"
             "Bash(gh pr create *)" "Bash(gh pr view)" "Bash(gh pr view *)"
             "Bash(gh pr diff *)" "Bash(gh pr checks *)" "Bash(gh pr comment *)"

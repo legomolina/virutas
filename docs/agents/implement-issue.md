@@ -8,7 +8,7 @@ The steps for taking one issue to a PR. Two entry points follow them:
 Where the two differ, the step says so. Anything the request adds or changes wins over these steps.
 
 1. Read the issue with its comments (`gh issue view <n> --comments`) and everything it points at: its parent issue, linked designs, the ADRs in `docs/adr/` and `GLOSSARY.md`. Stop and say why when an open issue still blocks it.
-2. Build it with the `mattpocock-skills:tdd` skill. For a bug or flaky behaviour, use `mattpocock-skills:diagnosing-bugs` first, and find the cause before changing code. Run single spec files and `pnpm typecheck` while iterating.
+2. Build it with the `mattpocock-skills:tdd` skill. For a bug or flaky behaviour, use `mattpocock-skills:diagnosing-bugs` first, and find the cause before changing code. Run single spec files (`pnpm test --watch=false --include <spec file>`) and `pnpm typecheck` while iterating. Use the `package.json` scripts, not `pnpm exec`.
 3. Meet every line of the Definition of Done in `CLAUDE.md`. When `*.calc.ts` changes, that includes `pnpm mutation`. UI work:
    - **Locally**: check it against the design in the browser and run `E2E_PORT=<port> pnpm e2e`.
    - **On GitHub**: leave the e2e run to CI, which step 6 waits for. There is no browser to check the design by eye.
