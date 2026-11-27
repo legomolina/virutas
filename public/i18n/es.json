@@ -31,7 +31,7 @@
   "settings": {
     "title": "Ajustes",
     "description": "Elige el sistema de medida, la precisión imperial, el idioma y los valores con los que empiezan las herramientas.",
-    "intro": "Los cambios se aplican al momento y se mantienen hasta que recargues o cierres esta pestaña.",
+    "intro": "Los cambios se aplican al momento y se guardan en este navegador.",
     "general": "General",
     "unitSystem": {
       "label": "Sistema de medida",
@@ -44,7 +44,14 @@
       "hint": "Fracción más pequeña que se muestra en los resultados imperiales.",
       "inch": "pulg."
     },
-    "language": "Idioma"
+    "language": "Idioma",
+    "reset": {
+      "heading": "Guardado en este navegador",
+      "explanation": "Los ajustes se guardan solo en este navegador. Al restablecerlos se borran y vuelven el idioma y el sistema de medida de tu navegador y todos los valores por defecto.",
+      "button": "Restablecer todos los ajustes",
+      "confirmHeading": "¿Restablecer todos los ajustes?",
+      "confirmMessage": "Todos los ajustes vuelven a su valor por defecto y no se guarda nada. No se puede deshacer."
+    }
   },
   "tools": {
     "unitConverter": {

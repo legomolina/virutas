@@ -37,6 +37,15 @@ const PAGE_STATES: readonly {
       await expect(page.locator('wt-stock-bar [data-marker]').first()).toBeVisible();
     },
   },
+  {
+    name: 'the Settings page with the reset confirmation open',
+    path: '/settings',
+    heading: 'Settings',
+    prepare: async (page) => {
+      await page.getByRole('button', { name: 'Reset all settings' }).click();
+      await expect(page.getByRole('alertdialog', { name: 'Reset all settings?' })).toBeVisible();
+    },
+  },
 ];
 
 /**

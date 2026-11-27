@@ -8,6 +8,8 @@ import type { ToolEntry } from '../core/tool-registry/tool-entry';
 import { TOOL_REGISTRY } from '../core/tool-registry/tool-registry';
 import { IMPERIAL_PRECISIONS } from '../shared/measurement/show-length.calc';
 import type { UnitSystem } from '../shared/measurement/unit-system';
+import { Button } from '../shared/ui/button/button';
+import { ConfirmService } from '../shared/ui/confirm-dialog/confirm';
 import type { SegmentedOption } from '../shared/ui/segmented-control/segmented-control';
 import { SegmentedControl } from '../shared/ui/segmented-control/segmented-control';
 import type { SelectOption } from '../shared/ui/select/select';
@@ -40,7 +42,7 @@ async function loadToolSections(tools: readonly ToolEntry[]): Promise<ToolSectio
 /** The settings page: the app-wide settings, then a section per Tool that has its own. */
 @Component({
   selector: 'wt-settings-page',
-  imports: [NgComponentOutlet, SegmentedControl, SelectField, TranslocoPipe],
+  imports: [Button, NgComponentOutlet, SegmentedControl, SelectField, TranslocoPipe],
   templateUrl: './settings.page.html',
   styleUrl: './settings.page.css',
 })
@@ -48,6 +50,14 @@ export default class SettingsPage {
   private readonly settings = inject(SettingsStore);
 
   private readonly tools = inject(TOOL_REGISTRY);
+
+  private readonly confirm = inject(ConfirmService);
+
+  private readonly resetHeading = translateSignal('settings.reset.confirmHeading');
+
+  private readonly resetMessage = translateSignal('settings.reset.confirmMessage');
+
+  private readonly resetButton = translateSignal('settings.reset.button');
 
   private readonly metric = translateSignal('settings.unitSystem.metric');
 
@@ -81,6 +91,19 @@ export default class SettingsPage {
     loader: async () => loadToolSections(this.tools),
     defaultValue: [],
   });
+
+  /** Asks first; on confirm every Setting goes back to its default. */
+  protected async resetAll(): Promise<void> {
+    const confirmed = await this.confirm.confirm({
+      heading: this.resetHeading(),
+      message: this.resetMessage(),
+      confirmLabel: this.resetButton(),
+      variant: 'danger',
+    });
+    if (confirmed) {
+      this.settings.resetAll();
+    }
+  }
 
   protected chooseUnitSystem(unitSystem: UnitSystem): void {
     this.settings.setUnitSystem(unitSystem);

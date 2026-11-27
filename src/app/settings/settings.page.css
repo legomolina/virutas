@@ -25,3 +25,11 @@ section {
 
   background-color: var(--surface-raised);
 }
+
+section > p {
+  color: var(--ink-muted);
+}
+
+button {
+  align-self: flex-start;
+}

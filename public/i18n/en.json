@@ -31,7 +31,7 @@
   "settings": {
     "title": "Settings",
     "description": "Choose the Unit System, Imperial precision, language and defaults the Tools start with.",
-    "intro": "Changes apply at once and last until you reload or close this tab.",
+    "intro": "Changes apply at once and are saved in this browser.",
     "general": "General",
     "unitSystem": {
       "label": "Unit System",
@@ -44,7 +44,14 @@
       "hint": "Smallest fraction shown in Imperial results.",
       "inch": "in"
     },
-    "language": "Language"
+    "language": "Language",
+    "reset": {
+      "heading": "Saved in this browser",
+      "explanation": "Settings are kept only in this browser. Resetting clears them and goes back to your browser's language and Unit System and every default.",
+      "button": "Reset all settings",
+      "confirmHeading": "Reset all settings?",
+      "confirmMessage": "Every Setting goes back to its default and nothing stays saved. This cannot be undone."
+    }
   },
   "tools": {
     "unitConverter": {
