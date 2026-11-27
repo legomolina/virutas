@@ -41,6 +41,17 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       EVENT_ACTION: ${{ github.event.action }}
     steps:
+      # A closed issue has nothing left in progress: release (claude.yml)
+      # keeps the label while the agent's PR is open, and merging that PR
+      # closes the issue.
+      - name: Free the closed issue
+        if: github.event.action == 'closed' && contains(github.event.issue.labels.*.name, 'in-progress')
+        # Never in the way of starting the issues the closing unblocked.
+        continue-on-error: true
+        env:
+          NUMBER: ${{ github.event.issue.number }}
+        run: gh issue edit "$NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label in-progress
+
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
