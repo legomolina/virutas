@@ -102,7 +102,7 @@ describe('the app shell', () => {
     expect(menu?.getAttribute('popover')).toBe('auto');
     expect(
       [...(menu?.querySelectorAll('a') ?? [])].map((link) => link.getAttribute('href')),
-    ).toEqual(['/test-tool', '/other-tool', '/settings']);
+    ).toEqual(['/test-tool', '/other-tool', '/settings', 'https://github.com/legomolina/virutas']);
   });
 
   it('moves focus to the main content with the skip link, without leaving the page', async () => {

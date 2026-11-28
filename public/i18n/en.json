@@ -25,6 +25,7 @@
     "toolsNav": "Tools",
     "settings": "Settings",
     "menu": "Menu",
+    "opensInNewTab": "{{ name }} (opens in a new tab)",
     "privacy": "Runs entirely in your browser. Nothing you type is sent anywhere.",
     "language": "Language"
   },

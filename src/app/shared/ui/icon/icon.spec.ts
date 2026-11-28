@@ -26,6 +26,7 @@ describe('Icon', () => {
     const { fixture, root } = render();
     const names: IconName[] = [
       'arrow-right',
+      'github',
       'menu',
       'printer',
       'sliders-horizontal',
@@ -43,6 +44,18 @@ describe('Icon', () => {
 
     expect(new Set(drawings).size).toBe(names.length);
     expect(drawings.every((drawing) => drawing !== undefined && drawing !== '')).toBe(true);
+  });
+
+  it('draws the bundled github mark filled with the text colour, with no outside image', async () => {
+    const { fixture, root } = render();
+    fixture.componentInstance.name.set('github');
+    await fixture.whenStable();
+
+    const svg = root.querySelector('svg');
+    expect(svg?.getAttribute('viewBox')).toBe('0 0 24 24');
+    expect(svg?.getAttribute('fill')).toBe('currentColor');
+    expect(svg?.querySelectorAll('path')).toHaveLength(1);
+    expect(svg?.querySelector('image, use')).toBeNull();
   });
 
   it('is hidden from assistive technology next to its text label', async () => {

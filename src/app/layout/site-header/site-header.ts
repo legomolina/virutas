@@ -9,6 +9,8 @@ import { filter } from 'rxjs';
 import { TOOL_REGISTRY } from '../../core/tool-registry/tool-registry';
 import { NavLink } from '../../shared/ui/nav-link/nav-link';
 
+const GITHUB_URL = 'https://github.com/legomolina/virutas';
+
 /**
  * The top bar on every page: the brand linking home, a link to each Tool and
  * to the settings. On narrow screens the links move into a Menu built on the
@@ -22,6 +24,8 @@ import { NavLink } from '../../shared/ui/nav-link/nav-link';
 })
 export class SiteHeader {
   protected readonly tools = inject(TOOL_REGISTRY);
+
+  protected readonly githubUrl = GITHUB_URL;
 
   /**
    * Whether the Menu popover is open, to swap the button's icon and announce it

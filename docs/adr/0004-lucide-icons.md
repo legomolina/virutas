@@ -9,6 +9,8 @@ Every icon in the app comes from Lucide (https://lucide.dev), so the app has one
 - **Decorative only.** `wt-icon` always sets `aria-hidden="true"` and is meant to sit next to a visible text label. An icon that must carry meaning alone needs its own issue and an accessible name on the control.
 - **Colour through tokens.** The icon strokes with `currentcolor`, so it follows the text colour of its parent (already a token) in both themes. `wt-icon` sets no colour of its own.
 
+- **Exception: brand icons Lucide does not ship** (amended for #170). Lucide 1.x has no brand icons, so such an icon is a self-hosted SVG bundled in `icon.html` as another `@case`, filled with `currentColor` and used unchanged from its source. The first is `github`, the GitHub mark from Octicons (`mark-github-24`, MIT). It stays inside `wt-icon`, so it is decorative and sized like the rest, and it adds no request to another origin.
+
 ## Considered Options
 
 - **Copying SVG files into the repo** (`lucide-static` or the website): no dependency, but each icon needs a loader or inline template and updates are manual.

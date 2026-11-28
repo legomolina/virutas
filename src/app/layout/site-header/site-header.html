@@ -24,10 +24,23 @@
     }
   </div>
 
-  <a wt-nav-link routerLink="/settings" routerLinkActive ariaCurrentWhenActive="page">
-    <wt-icon name="sliders-horizontal" />
-    {{ 'shell.settings' | transloco }}
-  </a>
+  <div class="end">
+    <a wt-nav-link routerLink="/settings" routerLinkActive ariaCurrentWhenActive="page">
+      <wt-icon name="sliders-horizontal" />
+      {{ 'shell.settings' | transloco }}
+    </a>
+
+    <a
+      wt-nav-link
+      [href]="githubUrl"
+      target="_blank"
+      rel="noopener noreferrer"
+      [attr.aria-label]="'shell.opensInNewTab' | transloco: { name: 'GitHub' }"
+    >
+      <wt-icon name="github" />
+      GitHub
+    </a>
+  </div>
 
   <button #menuButton type="button" popovertarget="site-menu" [attr.aria-expanded]="menuOpen()">
     <wt-icon [name]="menuOpen() ? 'x' : 'menu'" />
@@ -63,5 +76,14 @@
   }
   <a wt-nav-link routerLink="/settings" routerLinkActive ariaCurrentWhenActive="page">
     {{ 'shell.settings' | transloco }}
+  </a>
+  <a
+    wt-nav-link
+    [href]="githubUrl"
+    target="_blank"
+    rel="noopener noreferrer"
+    [attr.aria-label]="'shell.opensInNewTab' | transloco: { name: 'GitHub' }"
+  >
+    GitHub
   </a>
 </div>

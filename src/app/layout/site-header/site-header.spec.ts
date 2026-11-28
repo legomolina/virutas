@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
+import { TranslocoService } from '@jsverse/transloco';
 import type { ToolEntry } from '../../core/tool-registry/tool-entry';
 import { TOOL_REGISTRY } from '../../core/tool-registry/tool-registry';
 import { expectNoAxeViolations } from '../../../testing/expect-no-axe-violations';
@@ -159,7 +160,10 @@ describe('SiteHeader', () => {
     const { root } = await render('/', []);
 
     expect(root.querySelectorAll('nav')).toHaveLength(0);
-    expect(links(menu(root))).toEqual([['Settings', '/settings', null]]);
+    expect(links(menu(root))).toEqual([
+      ['Settings', '/settings', null],
+      ['GitHub', 'https://github.com/legomolina/virutas', null],
+    ]);
   });
 
   it('links to the settings, marked while on the settings page', async () => {
@@ -167,6 +171,41 @@ describe('SiteHeader', () => {
 
     const settings = links(root.querySelector('header')).filter(([text]) => text === 'Settings');
     expect(settings).toEqual([['Settings', '/settings', 'page']]);
+  });
+
+  it('links to the GitHub repository in a new tab, after the settings link, with the icon', async () => {
+    const { root } = await render('/');
+
+    const link = [...root.querySelectorAll('header .end a')].at(-1);
+    expect(link?.textContent.trim()).toBe('GitHub');
+    expect(link?.getAttribute('href')).toBe('https://github.com/legomolina/virutas');
+    expect(link?.getAttribute('target')).toBe('_blank');
+    expect(link?.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(link?.getAttribute('aria-label')).toBe('GitHub (opens in a new tab)');
+    expect(link?.querySelector('wt-icon svg')).not.toBeNull();
+    expect(link?.previousElementSibling?.getAttribute('href')).toBe('/settings');
+  });
+
+  it('announces in Spanish that the GitHub link opens in a new tab', async () => {
+    const { fixture, root } = await render('/');
+    TestBed.inject(TranslocoService).setActiveLang('es');
+    await fixture.whenStable();
+
+    const link = [...root.querySelectorAll('header .end a')].at(-1);
+    expect(link?.getAttribute('aria-label')).toBe('GitHub (se abre en una pestaña nueva)');
+  });
+
+  it('has the GitHub link last in the Menu, after the settings and without an icon', async () => {
+    const { root } = await render('/');
+
+    const link = [...menu(root).querySelectorAll('a')].at(-1);
+    expect(link?.textContent.trim()).toBe('GitHub');
+    expect(link?.getAttribute('href')).toBe('https://github.com/legomolina/virutas');
+    expect(link?.getAttribute('target')).toBe('_blank');
+    expect(link?.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(link?.getAttribute('aria-label')).toBe('GitHub (opens in a new tab)');
+    expect(link?.querySelector('wt-icon')).toBeNull();
+    expect(link?.previousElementSibling?.getAttribute('href')).toBe('/settings');
   });
 
   it('has a Menu button that controls a popover with the Tools and the settings', async () => {
@@ -178,6 +217,7 @@ describe('SiteHeader', () => {
       ['Test Tool', '/test-tool', null],
       ['Other Tool', '/other-tool', 'page'],
       ['Settings', '/settings', null],
+      ['GitHub', 'https://github.com/legomolina/virutas', null],
     ]);
   });
 
