@@ -25,6 +25,7 @@
     "toolsNav": "Herramientas",
     "settings": "Ajustes",
     "menu": "Menú",
+    "opensInNewTab": "{{ name }} (se abre en una pestaña nueva)",
     "privacy": "Funciona por completo en tu navegador. Nada de lo que escribes se envía a ningún sitio.",
     "language": "Idioma"
   },

@@ -17,13 +17,20 @@ header {
   background-color: var(--surface-raised);
 }
 
-header > div {
+header > div:not(.end) {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-8);
   align-items: center;
 
   min-inline-size: 0;
+}
+
+/* The links at the end of the header: Settings, then GitHub. */
+.end {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
 }
 
 /* The brand: the name next to the brand mark, a wood shaving. */
@@ -134,7 +141,7 @@ hr {
   }
 
   nav,
-  header > a {
+  .end {
     display: none;
   }
 
