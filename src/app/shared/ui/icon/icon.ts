@@ -8,7 +8,7 @@ import {
   LucideX,
 } from '@lucide/angular';
 
-/** The icons the app uses (Lucide names). Add a name here and a case in `icon.html` to use another. */
+/** The icons the app uses (Lucide names, plus bundled brand marks). Add a name here and a case in `icon.html` to use another. */
 export type IconName =
   | 'arrow-right'
   | 'github'
